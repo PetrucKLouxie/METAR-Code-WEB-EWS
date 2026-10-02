@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard METAR WARR - Juanda Airport</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
+  <div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">WARR Real-time METAR Collector</h1>
+        <p class="text-sm text-slate-400">Bandara Internasional Juanda, Surabaya</p>
+      </div>
+      <button onclick="fetchLatest()" id="btnSync" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition">
+        Sync Data Sekarang
+      </button>
+    </div>
+
+    <!-- Alert / Status Banner -->
+    <div id="statusBox" class="mb-6 p-4 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-between">
+      <div>
+        <span class="text-xs uppercase text-slate-400 font-bold tracking-wider">Laporan Raw Terakhir:</span>
+        <div id="rawMetar" class="text-emerald-400 font-mono mt-1 text-sm">Memuat data...</div>
+      </div>
+      <div id="badWeatherBadge" class="hidden px-3 py-1 bg-red-600/30 text-red-400 border border-red-500 rounded text-xs font-bold">
+        POTENSI CUACA BURUK
+      </div>
+    </div>
+
+    <!-- Metrik Kartu 4 Fitur -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <span class="text-xs text-slate-400">Kec. Angin</span>
+        <div class="text-2xl font-bold mt-1" id="valWind">- <span class="text-sm font-normal text-slate-400">kt</span></div>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <span class="text-xs text-slate-400">Suhu Udara</span>
+        <div class="text-2xl font-bold mt-1" id="valTemp">- <span class="text-sm font-normal text-slate-400">°C</span></div>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <span class="text-xs text-slate-400">Titik Embun (Dew Point)</span>
+        <div class="text-2xl font-bold mt-1" id="valDew">- <span class="text-sm font-normal text-slate-400">°C</span></div>
+      </div>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <span class="text-xs text-slate-400">Tekanan QNH</span>
+        <div class="text-2xl font-bold mt-1" id="valPress">- <span class="text-sm font-normal text-slate-400">hPa</span></div>
+      </div>
+    </div>
+
+    <!-- Tabel Riwayat Data di Google Sheets -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
+      <div class="px-5 py-3 border-b border-slate-700 font-semibold text-slate-200">
+        Riwayat Data Terarsip di Google Sheets
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-900/50 text-slate-400 text-xs uppercase">
+            <tr>
+              <th class="px-4 py-3">Timestamp</th>
+              <th class="px-4 py-3">Wind (kt)</th>
+              <th class="px-4 py-3">Temp (°C)</th>
+              <th class="px-4 py-3">Dew Pt (°C)</th>
+              <th class="px-4 py-3">QNH (hPa)</th>
+              <th class="px-4 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-700 font-mono text-xs">
+            <tr><td colspan="6" class="px-4 py-3 text-center text-slate-500">Memuat riwayat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    async function fetchLatest() {
+      const btn = document.getElementById('btnSync');
+      btn.innerText = "Mengambil...";
+      btn.disabled = true;
+      try {
+        await fetch(`${API_BASE}/api/metar/latest`);
+        await loadHistory();
+      } catch (err) {
+        alert("Gagal terhubung ke backend: " + err.message);
+      } finally {
+        btn.innerText = "Sync Data Sekarang";
+        btn.disabled = false;
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch(`${API_BASE}/api/metar/history`);
+        const json = await res.json();
+        const records = json.data || [];
+        if (records.length === 0) return;
+
+        // Ambil data paling baru
+        const latest = records[records.length - 1];
+        document.getElementById('rawMetar').innerText = latest.raw_metar;
+        document.getElementById('valWind').innerHTML = `${latest.wind_speed ?? '-'} <span class="text-sm font-normal text-slate-400">kt</span>`;
+        document.getElementById('valTemp').innerHTML = `${latest.temperature ?? '-'} <span class="text-sm font-normal text-slate-400">°C</span>`;
+        document.getElementById('valDew').innerHTML = `${latest.dew_point ?? '-'} <span class="text-sm font-normal text-slate-400">°C</span>`;
+        document.getElementById('valPress').innerHTML = `${latest.pressure ?? '-'} <span class="text-sm font-normal text-slate-400">hPa</span>`;
+
+        const badge = document.getElementById('badWeatherBadge');
+        if (latest.bad_weather === 1) {
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+
+        // Render tabel
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = records.slice().reverse().map(r => `
+          <tr class="hover:bg-slate-700/40">
+            <td class="px-4 py-2 font-sans text-slate-300">${r.timestamp}</td>
+            <td class="px-4 py-2">${r.wind_speed ?? '-'}</td>
+            <td class="px-4 py-2">${r.temperature ?? '-'}</td>
+            <td class="px-4 py-2">${r.dew_point ?? '-'}</td>
+            <td class="px-4 py-2">${r.pressure ?? '-'}</td>
+            <td class="px-4 py-2">${r.bad_weather === 1 ? '<span class="text-red-400 font-bold">BURUK</span>' : '<span class="text-emerald-400">NORMAL</span>'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Auto-refresh tampilan setiap 3 menit
+    loadHistory();
+    setInterval(loadHistory, 180000);
+  </script>
+</body>
+</html>
