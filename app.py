@@ -410,19 +410,55 @@ if not IS_VERCEL:
 # ---------------------------------------------
 # REST API ENDPOINTS & FRONTEND ROUTE
 # ---------------------------------------------
+def find_index_file():
+    candidates = [
+        INDEX_FILE,
+        os.path.join(os.path.dirname(BASE_DIR), "index.html"),
+        os.path.join(os.getcwd(), "index.html"),
+        os.path.join(os.getcwd(), "public", "index.html")
+    ]
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+    return None
+
 @app.get("/")
+@app.get("/index.html")
 def serve_index():
     """Menyajikan halaman web frontend"""
-    if os.path.exists(INDEX_FILE):
-        return FileResponse(INDEX_FILE)
+    path = find_index_file()
+    if path:
+        return FileResponse(path)
     return {"message": "index.html tidak ditemukan di direktori project"}
 
+@app.get("/api")
+@app.get("/api/")
+@app.get("/api/index")
+def api_status():
+    """Endpoint informasi status API"""
+    return {
+        "status": "online",
+        "service": "WARR METAR Early Warning System API",
+        "endpoints": {
+            "latest": "/api/metar/latest",
+            "history": "/api/metar/history",
+            "docs": "/docs"
+        },
+        "version": "2.4-UTC"
+    }
+
 @app.get("/api/metar/latest")
+@app.get("/metar/latest")
+@app.get("/api/metar/latest/")
+@app.get("/metar/latest/")
 def get_latest():
     """Mengambil METAR terbaru, mem-parsing, dan append jika periode baru"""
     return fetch_and_append_metar()
 
 @app.get("/api/metar/history")
+@app.get("/metar/history")
+@app.get("/api/metar/history/")
+@app.get("/metar/history/")
 def get_history():
     """Membaca 20 baris riwayat terakhir dari Google Sheets (format UTC)"""
     global _latest_raw_metar
