@@ -1,0 +1,22 @@
+# Python virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vercel deployment cache
+.vercel/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+credentials.json
+
+# Local temp cache
+metar_history.json
