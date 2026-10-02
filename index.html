@@ -2,123 +2,679 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard METAR WARR - Juanda Airport (UTC)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WARR METAR Early Warning System - Juanda Airport</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
-  <div class="max-w-5xl mx-auto">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-700 pb-4">
-      <div>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased flex flex-col md:flex-row">
+
+  <!-- Mobile Backdrop Overlay -->
+  <div id="sidebarBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden md:hidden transition-opacity duration-300"></div>
+
+  <!-- ========================================================= -->
+  <!-- 1. SIDEBAR NAVIGATION (~260px, Sticky Desktop, Drawer Mobile) -->
+  <!-- ========================================================= -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between transform -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen transition-transform duration-300 ease-in-out shrink-0">
+    
+    <!-- Bagian Atas: Brand & Logo -->
+    <div>
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-bold tracking-tight">WARR Real-time METAR Collector</h1>
-          <span id="sourceBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">
-            ● Google Sheets
-          </span>
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-900/60 text-blue-300 border border-blue-500/40">
-            Standard: UTC (Zulu)
-          </span>
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-black text-lg">
+            ⚡
+          </div>
+          <div>
+            <div class="font-extrabold tracking-tight text-white text-base leading-tight">WARR EWS</div>
+            <div class="text-[11px] font-mono text-cyan-400 font-semibold tracking-wider">JUANDA METAR DSS</div>
+          </div>
         </div>
-        <p class="text-sm text-slate-400 mt-1">Bandara Internasional Juanda, Surabaya &bull; Format Waktu Dataset: <span class="font-mono text-slate-300 font-semibold">UTC (Universal Time Coordinated)</span></p>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <!-- Jam Live UTC -->
-        <div class="hidden md:flex flex-col text-right">
-          <span class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Live UTC Clock</span>
-          <span id="utcClock" class="font-mono text-sm font-bold text-slate-200">--:--:-- UTC</span>
-        </div>
-
-        <!-- Auto Refresh Indicator -->
-        <div class="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-700">
-          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Auto-refresh: <strong id="countdownText" class="text-slate-200">60s</strong></span>
-        </div>
-
-        <button onclick="fetchLatest()" id="btnSync" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-medium px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
-          <svg id="syncIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        <!-- Tombol Close Mobile -->
+        <button onclick="toggleSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
-          <span id="btnSyncText">Sync Data Sekarang</span>
         </button>
       </div>
+
+      <!-- Menu List Navigasi -->
+      <nav class="p-3 space-y-1.5 mt-2">
+        <!-- 1. Dashboard & EWS -->
+        <button onclick="switchTab('dashboard')" id="nav-btn-dashboard" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-blue-400 bg-blue-600/15 border border-blue-500/30 shadow-xs">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"></path>
+          </svg>
+          <span class="truncate">Dashboard & EWS</span>
+        </button>
+
+        <!-- 2. Policy & Standards -->
+        <button onclick="switchTab('policy')" id="nav-btn-policy" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          <span class="truncate">Policy & Standards</span>
+        </button>
+
+        <!-- 3. Documentation / API -->
+        <button onclick="switchTab('docs')" id="nav-btn-docs" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+          </svg>
+          <span class="truncate">Documentation & API</span>
+        </button>
+      </nav>
     </div>
 
-    <!-- Alert / Status Banner -->
-    <div id="statusBox" class="mb-6 p-4 rounded-xl bg-slate-800 border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs uppercase text-slate-400 font-bold tracking-wider">Laporan Raw METAR Terakhir:</span>
-          <span id="updateTime" class="text-xs text-blue-400 font-mono font-semibold"></span>
+    <!-- Bagian Bawah: Metadata Stasiun & Status Operasional -->
+    <div class="p-4 border-t border-slate-800 space-y-3 bg-slate-900/60">
+      <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
+        <div class="flex items-center justify-between text-xs mb-1">
+          <span class="text-slate-400 font-medium">Stasiun ICAO:</span>
+          <span class="font-mono font-bold text-cyan-400">WARR / SUB</span>
         </div>
-        <div id="rawMetar" class="text-emerald-400 font-mono mt-1 text-sm font-semibold break-all">Memuat data...</div>
-      </div>
-      <div id="badWeatherBadge" class="hidden px-3.5 py-1.5 bg-red-600/30 text-red-400 border border-red-500 rounded-lg text-xs font-bold whitespace-nowrap self-start md:self-auto">
-        ⚠ POTENSI CUACA BURUK
-      </div>
-    </div>
-
-    <!-- Metrik Kartu 4 Fitur Utama Sesuai Dataset Google Sheet -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm">
-        <span class="text-xs font-medium text-slate-400">Kec. Angin (Wind Speed)</span>
-        <div class="text-3xl font-extrabold mt-1 text-blue-400" id="valWind">- <span class="text-sm font-normal text-slate-400">kt</span></div>
-        <span class="text-[11px] text-slate-500 mt-1 block font-mono">Kolom B: wind_speed</span>
-      </div>
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm">
-        <span class="text-xs font-medium text-slate-400">Suhu Udara (Temp)</span>
-        <div class="text-3xl font-extrabold mt-1 text-amber-400" id="valTemp">- <span class="text-sm font-normal text-slate-400">°C</span></div>
-        <span class="text-[11px] text-slate-500 mt-1 block font-mono">Kolom E: temperature</span>
-      </div>
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm">
-        <span class="text-xs font-medium text-slate-400">Titik Embun (Dew Point)</span>
-        <div class="text-3xl font-extrabold mt-1 text-cyan-400" id="valDew">- <span class="text-sm font-normal text-slate-400">°C</span></div>
-        <span class="text-[11px] text-slate-500 mt-1 block font-mono">Kolom C: dew_point</span>
-      </div>
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm">
-        <span class="text-xs font-medium text-slate-400">Tekanan Udara (QNH)</span>
-        <div class="text-3xl font-extrabold mt-1 text-emerald-400" id="valPress">- <span class="text-sm font-normal text-slate-400">hPa</span></div>
-        <span class="text-[11px] text-slate-500 mt-1 block font-mono">Kolom D: pressure</span>
-      </div>
-    </div>
-
-    <!-- Tabel Riwayat Data di Google Sheets -->
-    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
-      <div class="px-5 py-3.5 border-b border-slate-700 flex justify-between items-center bg-slate-800/70">
-        <div class="font-semibold text-slate-200 flex items-center gap-2">
-          <span>Riwayat Data Terarsip di Google Sheets</span>
-          <span id="recordCountBadge" class="text-xs font-mono bg-slate-700 text-slate-300 px-2 py-0.5 rounded">20 terakhir</span>
-        </div>
-        <div class="text-xs text-slate-400">
-          Spreadsheet: <span class="text-slate-300 font-mono">METAR Record</span> &bull; Timezone: <span class="text-blue-400 font-bold font-mono">UTC</span>
+        <div class="text-[11px] text-slate-400 leading-snug">
+          Bandara Juanda Surabaya<br>
+          <span class="font-mono text-slate-500">Elev. 3m MSL &bull; Selat Madura</span>
         </div>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-900/70 text-slate-400 text-xs uppercase font-semibold">
-            <tr>
-              <th class="px-4 py-3">Slot Waktu (UTC)</th>
-              <th class="px-4 py-3">Wind (kt)</th>
-              <th class="px-4 py-3">Temp (°C)</th>
-              <th class="px-4 py-3">Dew Pt (°C)</th>
-              <th class="px-4 py-3">QNH (hPa)</th>
-              <th class="px-4 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody" class="divide-y divide-slate-700/60 font-mono text-xs">
-            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">Memuat riwayat dataset...</td></tr>
-          </tbody>
-        </table>
+
+      <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="text-emerald-300 font-semibold">Live System</span>
+        </span>
+        <span class="font-mono text-slate-500">v2.4-UTC</span>
       </div>
     </div>
-  </div>
+  </aside>
 
+  <!-- ========================================================= -->
+  <!-- 2. MAIN CONTENT AREA -->
+  <!-- ========================================================= -->
+  <main class="flex-1 flex flex-col min-w-0 bg-slate-950">
+
+    <!-- Topbar Header (Responsif: Hamburger Mobile + Breadcrumb + Jam UTC + Sync Button) -->
+    <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Hamburger Menu Button (Mobile Only) -->
+        <button onclick="toggleSidebar(true)" class="md:hidden text-slate-300 hover:text-white p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 id="topbarTitle" class="text-lg font-bold text-white tracking-tight">Dashboard & EWS Real-time</h2>
+            <span id="sourceBadge" class="hidden sm:inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">
+              ● Google Sheets
+            </span>
+          </div>
+          <p id="topbarSubtitle" class="text-xs text-slate-400 hidden sm:block">Pemantauan & Peringatan Dini Cuaca Ekstrem Bandara Juanda</p>
+        </div>
+      </div>
+
+      <!-- Aksi Header: Jam UTC, Countdown Auto-Refresh, Tombol Sync -->
+      <div class="flex items-center gap-2.5 sm:gap-3">
+        <!-- Live UTC Clock -->
+        <div class="hidden lg:flex flex-col text-right px-2.5 py-1 rounded-lg bg-slate-800/60 border border-slate-700/50">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Clock (Zulu)</span>
+          <span id="utcClock" class="font-mono text-xs font-bold text-blue-400">--:--:-- UTC</span>
+        </div>
+
+        <!-- Auto-Refresh Countdown Indicator -->
+        <div class="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-800/80 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-700">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="hidden sm:inline text-slate-400 text-xs">Auto-refresh:</span>
+          <strong id="countdownText" class="text-slate-200 font-mono text-xs">60s</strong>
+        </div>
+
+        <!-- Sync Button -->
+        <button onclick="fetchLatest()" id="btnSync" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg shadow-sm transition flex items-center gap-2 text-xs sm:text-sm">
+          <svg id="syncIcon" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          <span id="btnSyncText" class="hidden sm:inline">Sync Data</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Kontainer Konten Tab -->
+    <div class="p-4 sm:p-6 lg:p-8 flex-1">
+
+      <!-- ========================================================= -->
+      <!-- TAB 1: DASHBOARD & EWS (KONTEN UTAMA) -->
+      <!-- ========================================================= -->
+      <section id="tab-dashboard" class="tab-content max-w-6xl mx-auto space-y-6 animate-fade-in">
+        
+        <!-- Status Box / Raw METAR -->
+        <div id="statusBox" class="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xs uppercase text-slate-400 font-bold tracking-wider">Laporan Raw METAR Terakhir:</span>
+              <span id="updateTime" class="text-xs text-blue-400 font-mono font-semibold"></span>
+            </div>
+            <div id="rawMetar" class="text-emerald-400 font-mono mt-1 text-sm sm:text-base font-semibold break-all">Memuat data observasi...</div>
+          </div>
+          <div id="badWeatherBadge" class="hidden px-4 py-2 bg-red-600/25 text-red-400 border border-red-500/50 rounded-xl text-xs font-bold tracking-wide shrink-0">
+            ⚠ POTENSI CUACA BURUK
+          </div>
+        </div>
+
+        <!-- 4 Kartu Metrik Fitur Utama -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Card 1: Wind Speed -->
+          <div class="bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden">
+            <div class="text-xs font-medium text-slate-400">Kec. Angin (Wind Speed)</div>
+            <div class="text-2xl sm:text-3xl font-extrabold mt-1 text-blue-400 font-mono" id="valWind">- <span class="text-sm font-normal text-slate-400">kt</span></div>
+            <div class="text-[11px] text-slate-500 mt-2 font-mono flex items-center justify-between">
+              <span>Kolom: wind_speed</span>
+              <span class="text-blue-500/70">Knots</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Temperature -->
+          <div class="bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden">
+            <div class="text-xs font-medium text-slate-400">Suhu Udara (Temp)</div>
+            <div class="text-2xl sm:text-3xl font-extrabold mt-1 text-amber-400 font-mono" id="valTemp">- <span class="text-sm font-normal text-slate-400">°C</span></div>
+            <div class="text-[11px] text-slate-500 mt-2 font-mono flex items-center justify-between">
+              <span>Kolom: temperature</span>
+              <span class="text-amber-500/70">Celsius</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Dew Point -->
+          <div class="bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden">
+            <div class="text-xs font-medium text-slate-400">Titik Embun (Dew Point)</div>
+            <div class="text-2xl sm:text-3xl font-extrabold mt-1 text-cyan-400 font-mono" id="valDew">- <span class="text-sm font-normal text-slate-400">°C</span></div>
+            <div class="text-[11px] text-slate-500 mt-2 font-mono flex items-center justify-between">
+              <span>Kolom: dew_point</span>
+              <span class="text-cyan-500/70">Celsius</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Pressure -->
+          <div class="bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden">
+            <div class="text-xs font-medium text-slate-400">Tekanan Udara (QNH)</div>
+            <div class="text-2xl sm:text-3xl font-extrabold mt-1 text-emerald-400 font-mono" id="valPress">- <span class="text-sm font-normal text-slate-400">hPa</span></div>
+            <div class="text-[11px] text-slate-500 mt-2 font-mono flex items-center justify-between">
+              <span>Kolom: pressure</span>
+              <span class="text-emerald-500/70">Hektopaskal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabel Riwayat Data di Google Sheets -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
+          <div class="px-5 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/80">
+            <div class="font-bold text-slate-200 flex items-center gap-2 text-sm sm:text-base">
+              <span>Riwayat Data Terarsip di Google Sheets</span>
+              <span id="recordCountBadge" class="text-xs font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700">20 baris</span>
+            </div>
+            <div class="text-xs text-slate-400 flex items-center gap-3">
+              <span>Spreadsheet: <strong class="text-slate-300 font-mono">METAR Record</strong></span>
+              <span class="hidden sm:inline">&bull;</span>
+              <span>Timezone: <strong class="text-blue-400 font-mono font-bold">UTC (Zulu)</strong></span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-950/80 text-slate-400 text-xs uppercase font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="px-4 py-3">Slot Waktu (UTC)</th>
+                  <th class="px-4 py-3">Wind (kt)</th>
+                  <th class="px-4 py-3">Temp (°C)</th>
+                  <th class="px-4 py-3">Dew Pt (°C)</th>
+                  <th class="px-4 py-3">QNH (hPa)</th>
+                  <th class="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-800/70 font-mono text-xs">
+                <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500 font-sans">Memuat riwayat dataset...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 2: POLICY & STANDARDS (DOKUMENTASI TEKNIS EWS) -->
+      <!-- ========================================================= -->
+      <section id="tab-policy" class="tab-content hidden max-w-5xl mx-auto space-y-8 animate-fade-in">
+        
+        <!-- Header Section Policy -->
+        <div class="border-b border-slate-800 pb-5">
+          <div class="flex items-center gap-2 text-xs font-mono text-blue-400 font-semibold uppercase tracking-wider mb-1">
+            <span>Standar Operasional & Kebijakan Algoritma</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Kebijakan & Standar Sistem EWS Cuaca Ekstrem</h1>
+          <p class="text-sm text-slate-400 mt-2 leading-relaxed">
+            Pedoman tata kelola data observasi METAR, arsitektur pemodelan prediktif LSTM-XGBoost, ambang peringatan dini operasional penerbangan, dan validasi standar meteorologi internasional WMO.
+          </p>
+        </div>
+
+        <!-- 1. Data Governance & Observasi -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4 shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/30">
+              1
+            </div>
+            <h3 class="text-lg font-bold text-white">Data Governance & Protokol Observasi</h3>
+          </div>
+          
+          <div class="text-sm text-slate-300 space-y-3 leading-relaxed">
+            <p>
+              Sistem ini memantau stasiun meteorologi penerbangan resmi <strong>WARR (Bandara Internasional Juanda, Surabaya/Sidoarjo)</strong> yang berlokasi pada koordinat geografis <code class="text-cyan-400 font-mono text-xs">07°22'47"S 112°47'14"E</code> pada elevasi 3 meter di atas permukaan laut (MSL). Stasiun ini memiliki karakteristik mikroklimat pesisir Selat Madura dengan dinamika angin darat-laut yang kuat.
+            </p>
+            <p>
+              Data divalidasi dan diekstraksi ke dalam <strong>4 variabel kunci termodinamika & kinematika atmosfer</strong>:
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+                <div class="font-semibold text-amber-400 text-xs">Suhu Udara ($T$)</div>
+                <div class="text-xs text-slate-400 mt-1">Temperatur permukaan *dry-bulb* (°C), indikator pemanasan radiasi diurnal yang memicu konveksi termal lokal.</div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+                <div class="font-semibold text-cyan-400 text-xs">Titik Embun / Dew Point ($T_d$)</div>
+                <div class="text-xs text-slate-400 mt-1">Suhu saturasi uap air (°C). Nilai selisih *depression* $(T - T_d)$ menentukan tinggi dasar awan konvektif (*cloud base height*).</div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+                <div class="font-semibold text-emerald-400 text-xs">Tekanan Udara QNH ($P$)</div>
+                <div class="text-xs text-slate-400 mt-1">Tekanan atmosfer terkalibrasi ke permukaan laut rata-rata (hPa), parameter vital untuk altimeter pesawat dan deteksi palung tekanan rendah (*trough*).</div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+                <div class="font-semibold text-blue-400 text-xs">Kecepatan Angin ($V$)</div>
+                <div class="text-xs text-slate-400 mt-1">Kecepatan angin permukaan rata-rata dalam satuan knot (kt), termasuk deteksi hembusan kencang (*gust*) dan potensi *wind shear* di koridor landasan pacu Runway 10/28.</div>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-800/60 border-l-4 border-cyan-500 text-xs text-slate-300">
+              <strong class="text-cyan-300">Aturan Sinkronisasi 30-Menit & SPECI Override:</strong> Observasi rutin diambil setiap interval 30 menit (:00 dan :30 UTC). Apabila terjadi perubahan kondisi cuaca kritis mendadak, stasiun menerbitkan laporan khusus <strong>SPECI (Special Meteorological Report)</strong> yang secara otomatis memiliki prioritas tertinggi (*override*) untuk langsung diolah dan disimpan ke sistem tanpa menunggu siklus reguler.
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Algorithmic Policy & Modeling -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4 shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/30">
+              2
+            </div>
+            <h3 class="text-lg font-bold text-white">Kebijakan Algoritma & Pemodelan Prediktif</h3>
+          </div>
+          
+          <div class="text-sm text-slate-300 space-y-3 leading-relaxed">
+            <p>
+              Sistem EWS menggunakan arsitektur *hybrid machine learning* untuk memprediksi probabilitas cuaca buruk (*Thunderstorm, Severe Wind, Heavy Precipitation*) pada <strong>Multi-Step Horizon</strong>:
+            </p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center">
+              <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-blue-400 font-bold text-sm">+6 Jam</div>
+                <div class="text-[11px] text-slate-400">Tactical Window</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-cyan-400 font-bold text-sm">+12 Jam</div>
+                <div class="text-[11px] text-slate-400">Pre-Flight Planning</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-amber-400 font-bold text-sm">+18 Jam</div>
+                <div class="text-[11px] text-slate-400">Shift Planning</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-emerald-400 font-bold text-sm">+24 Jam</div>
+                <div class="text-[11px] text-slate-400">Strategic Advisory</div>
+              </div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <h4 class="font-bold text-slate-200 text-xs uppercase tracking-wider">Peran Model Hybrid:</h4>
+              <ul class="list-disc list-inside space-y-1.5 text-xs text-slate-300 pl-1">
+                <li><strong>LSTM (Long Short-Term Memory Network):</strong> Bertugas mengekstraksi memori temporal 24 jam ke belakang (48 timestep METAR) guna memahami pola siklus diurnal suhu, penurunan tekanan bertahap, dan pergeseran massa udara laut.</li>
+                <li><strong>XGBoost (Extreme Gradient Boosting):</strong> Mengolah representasi fitur temporal dari LSTM dan variabel fisik untuk membentuk *decision boundaries* non-linear yang tajam dalam mendeteksi kejadian cuaca ekstrem.</li>
+                <li><strong>Validasi Chronological Time-Series Split:</strong> Evaluasi model strictly dilarang menggunakan *random k-fold cross validation*. Pelatihan dilakukan menggunakan skema *time-series walk-forward split* untuk menjamin **Zero Temporal Data Leakage** antara dataset masa lalu dan masa depan.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Alert Level Policy & Ambang Keputusan (Card / Visual Table) -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4 shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/30">
+              3
+            </div>
+            <h3 class="text-lg font-bold text-white">Alert Level Policy & Ambang Keputusan Operasional</h3>
+          </div>
+
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Tingkat peringatan dihitung berdasarkan estimasi probabilitas model ($P$) yang dikalibrasi terhadap <strong>Cost-Loss Matrix Optimization</strong> operasional bandara:
+          </p>
+
+          <!-- Cards / Visual Table Alert Levels -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Level 1: Normal -->
+            <div class="p-5 rounded-2xl bg-slate-950 border-2 border-emerald-500/30 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-300 text-xs font-bold border border-emerald-500/40">🟢 LEVEL 1</span>
+                  <span class="font-mono text-xs font-bold text-emerald-400">P &lt; 20%</span>
+                </div>
+                <h4 class="font-bold text-white text-base">NORMAL (Advisory)</h4>
+                <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                  Kondisi atmosfer stabil dan mendukung operasional bandara standar.
+                </p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400">
+                <strong class="text-slate-300">Tindakan:</strong> Monitoring rutin observasi METAR 30-menitan.
+              </div>
+            </div>
+
+            <!-- Level 2: Waspada -->
+            <div class="p-5 rounded-2xl bg-slate-950 border-2 border-amber-500/40 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2.5 py-1 rounded-full bg-amber-950 text-amber-300 text-xs font-bold border border-amber-500/40">🟡 LEVEL 2</span>
+                  <span class="font-mono text-xs font-bold text-amber-400">20% &le; P &lt; 40%</span>
+                </div>
+                <h4 class="font-bold text-white text-base">WASPADA (Watch)</h4>
+                <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                  Terdeteksi peningkatan instabilitas atmosfer atau gradien tekanan lokal.
+                </p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400">
+                <strong class="text-slate-300">Tindakan:</strong> Siagakan tim operasional, pantau radar Doppler & citra satelit Himawari.
+              </div>
+            </div>
+
+            <!-- Level 3: Peringatan -->
+            <div class="p-5 rounded-2xl bg-slate-950 border-2 border-red-500/50 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="px-2.5 py-1 rounded-full bg-red-950 text-red-300 text-xs font-bold border border-red-500/40">🔴 LEVEL 3</span>
+                  <span class="font-mono text-xs font-bold text-red-400">P &ge; 40%</span>
+                </div>
+                <h4 class="font-bold text-white text-base">PERINGATAN (Warning)</h4>
+                <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                  Probabilitas tinggi badai guntur (TSRA), angin kencang &ge;25 kt, atau penurunan jarak pandang drastis.
+                </p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400">
+                <strong class="text-slate-300">Tindakan:</strong> Aktifkan SOP mitigasi bandara, siagakan *fuel contingency* & koordinasi ATC.
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300">
+            <strong class="text-white">Rasional Cost-Loss Matrix:</strong> Dalam dunia penerbangan sipil, biaya kerugian akibat insiden cuaca ekstrem tanpa peringatan (*Missed Event / $C_{loss}$*) jauh melampaui biaya operasional mitigasi dini (*False Alarm Cost / $C_{protect}$*). Oleh karena itu, threshold klasifikasi ditetapkan optimal pada **$P \ge 40\%$** (bukan default $50\%$) demi mengedepankan prinsip keselamatan maksimal (*safety-first principle*).
+          </div>
+        </div>
+
+        <!-- 4. Standar Verifikasi Internasional (WMO-No. 1150) -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4 shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/30">
+              4
+            </div>
+            <h3 class="text-lg font-bold text-white">Standar Verifikasi Meteorologi (WMO-No. 1150)</h3>
+          </div>
+
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Evaluasi keandalan model diverifikasi sesuai dokumen panduan <strong>World Meteorological Organization (WMO-No. 1150: Guidelines on High-Impact Weather Forecast Verification)</strong> dengan matriks kontinjensi $2 \times 2$:
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+            <!-- POD -->
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-blue-400 text-xs">POD (Hit Rate)</span>
+                <span class="text-[10px] bg-blue-900/40 text-blue-300 px-1.5 py-0.5 rounded font-mono">Target: &gt; 0.75</span>
+              </div>
+              <div class="font-mono text-xs bg-slate-900 p-2 rounded border border-slate-800 text-center text-slate-200">
+                POD = A / (A + C)
+              </div>
+              <p class="text-[11px] text-slate-400 leading-snug">
+                Persentase kejadian cuaca buruk yang berhasil dideteksi sistem terhadap total seluruh kejadian nyata (Hits / Observed Events).
+              </p>
+            </div>
+
+            <!-- FAR -->
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-amber-400 text-xs">FAR (False Alarm)</span>
+                <span class="text-[10px] bg-amber-900/40 text-amber-300 px-1.5 py-0.5 rounded font-mono">Target: &lt; 0.30</span>
+              </div>
+              <div class="font-mono text-xs bg-slate-900 p-2 rounded border border-slate-800 text-center text-slate-200">
+                FAR = B / (A + B)
+              </div>
+              <p class="text-[11px] text-slate-400 leading-snug">
+                Proporsi peringatan cuaca buruk yang dikeluarkan sistem namun tidak terjadi di lapangan (False Alarms / Total Forecasts).
+              </p>
+            </div>
+
+            <!-- CSI -->
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-emerald-400 text-xs">CSI (Threat Score)</span>
+                <span class="text-[10px] bg-emerald-900/40 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Target: Maksimal</span>
+              </div>
+              <div class="font-mono text-xs bg-slate-900 p-2 rounded border border-slate-800 text-center text-slate-200">
+                CSI = A / (A + B + C)
+              </div>
+              <p class="text-[11px] text-slate-400 leading-snug">
+                Skor keberhasilan kritis yang menguji ketepatan deteksi tanpa terbiaskan oleh tingginya frekuensi cuaca normal (*Correct Negatives* D).
+              </p>
+            </div>
+          </div>
+
+          <div class="text-[11px] text-slate-500 font-mono text-center">
+            Keterangan: A = Hits (Tepat Terdeteksi), B = False Alarms (Alarm Palsu), C = Misses (Terlewatkan), D = Correct Negatives (Normal).
+          </div>
+        </div>
+
+        <!-- 5. Operational Disclaimer (Alert Box Beraksen Kuning/Oranye) -->
+        <div class="p-5 rounded-2xl bg-amber-950/30 border-2 border-amber-500/50 shadow-lg shadow-amber-950/20 space-y-3">
+          <div class="flex items-center gap-2.5 text-amber-400 font-bold text-sm sm:text-base">
+            <svg class="w-6 h-6 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <span>DISCLAIMER OPERASIONAL & KETENTUAN PENGGUNAAN</span>
+          </div>
+          <div class="text-xs sm:text-sm text-amber-200/90 leading-relaxed space-y-2">
+            <p>
+              Sistem <strong>WARR METAR Early Warning System (EWS)</strong> ini dirancang murni sebagai instrumen <em>Decision Support System (DSS)</em> berbasis komputasi kecerdasan buatan (AI) untuk membantu riset, analisis tren, dan pemantauan dini kondisi atmosfer.
+            </p>
+            <p class="font-medium text-amber-100">
+              Sistem ini <u>BUKAN</u> merupakan pengganti buletin resmi, peringatan dini resmi dari <strong>Badan Meteorologi, Klimatologi, dan Geofisika (BMKG)</strong>, maupun instruksi pemanduan lalu lintas udara dari <strong>Perum LPPNPI (AirNav Indonesia)</strong>.
+            </p>
+            <p class="text-xs text-amber-300/80">
+              Segala keputusan operasional penerbangan (*Go/No-Go Decision, Aircraft Holding, Divert, Runway Direction Change*) wajib sepenuhnya merujuk pada dokumen resmi (*SIGMET, AIRMET, TAF, SPECI resmi BMKG*) dan otorisasi dari petugas Air Traffic Controller (ATC) yang bertugas.
+            </p>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 3: DOCUMENTATION & API -->
+      <!-- ========================================================= -->
+      <section id="tab-docs" class="tab-content hidden max-w-5xl mx-auto space-y-6 animate-fade-in">
+        <div class="border-b border-slate-800 pb-5">
+          <div class="flex items-center gap-2 text-xs font-mono text-blue-400 font-semibold uppercase tracking-wider mb-1">
+            <span>Developer Reference</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Dokumentasi REST API & Skema Data</h1>
+          <p class="text-sm text-slate-400 mt-2 leading-relaxed">
+            Spesifikasi endpoint backend FastAPI untuk integrasi data real-time METAR dan pembacaan riwayat Google Sheets.
+          </p>
+        </div>
+
+        <!-- Endpoint 1: Latest -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="px-2.5 py-1 rounded-md bg-emerald-900/60 text-emerald-300 font-mono text-xs font-bold border border-emerald-500/40">GET</span>
+              <code class="font-mono text-sm text-slate-200 font-bold">/api/metar/latest</code>
+            </div>
+            <span class="text-xs text-slate-500">Real-time Fetch</span>
+          </div>
+          <p class="text-xs text-slate-400">
+            Mengambil data raw METAR terbaru dari Aviation Weather API, mem-parsing 4 parameter cuaca, dan melakukan sinkronisasi otomatis ke Google Sheet jika merupakan periode observasi baru.
+          </p>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+            <pre><code>{
+  "status": "success",
+  "data": {
+    "slot_30min": "2026-10-02 21:30:00",
+    "timestamp": "2026-10-02 21:30:00",
+    "raw_metar": "METAR WARR 022130Z 25005KT 4000 HZ FEW020 24/22 Q1014 NOSIG",
+    "wind_speed": 5.0,
+    "temperature": 24.0,
+    "dew_point": 22.0,
+    "pressure": 1014.0,
+    "bad_weather": 0
+  },
+  "sheet_synced": true
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Endpoint 2: History -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="px-2.5 py-1 rounded-md bg-blue-900/60 text-blue-300 font-mono text-xs font-bold border border-blue-500/40">GET</span>
+              <code class="font-mono text-sm text-slate-200 font-bold">/api/metar/history</code>
+            </div>
+            <span class="text-xs text-slate-500">Historical Query</span>
+          </div>
+          <p class="text-xs text-slate-400">
+            Membaca 20 baris riwayat data terakhir dari Google Sheet (atau cache lokal jika offline) dalam urutan kronologis UTC.
+          </p>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+            <pre><code>{
+  "total": 20,
+  "source": "google_sheets",
+  "timezone": "UTC",
+  "data": [
+    {
+      "slot_30min": "2026-10-02 21:30:00",
+      "wind_speed": 5.0,
+      "temperature": 24.0,
+      "dew_point": 22.0,
+      "pressure": 1014.0,
+      "bad_weather": 0
+    }
+  ]
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Skema Kolom Google Sheet -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-3">
+          <h3 class="font-bold text-white text-sm">Spesifikasi 6 Kolom Dataset Google Sheets (METAR Record)</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
+              <div class="text-blue-400 font-bold">1. slot_30min</div>
+              <div class="text-slate-400 text-[11px] mt-0.5">YYYY-MM-DD HH:MM:00 (UTC)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
+              <div class="text-blue-400 font-bold">2. wind_speed</div>
+              <div class="text-slate-400 text-[11px] mt-0.5">Float (Knot / kt)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
+              <div class="text-blue-400 font-bold">3. dew_point</div>
+              <div class="text-slate-400 text-[11px] mt-0.5">Float (Celsius / °C)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
+              <div class="text-blue-400 font-bold">4. pressure</div>
+              <div class="text-slate-400 text-[11px] mt-0.5">Float (QNH hPa)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
+              <div class="text-blue-400 font-bold">5. temperature</div>
+              <div class="text-slate-400 text-[11px] mt-0.5">Float (Celsius / °C)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono">
+              <div class="text-blue-400 font-bold">6. bad_weather</div>
+              <div class="text-slate-400 text-[11px] mt-0.5">Binary (0: Normal, 1: Buruk)</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- 3. JAVASCRIPT (TAB SWITCHING, DRAWER, & REAL-TIME METAR) -->
+  <!-- ========================================================= -->
   <script>
     const API_BASE = window.location.origin.startsWith("http") ? "" : "http://127.0.0.1:8000";
     let countdownSec = 60;
     let countdownTimer = null;
 
-    // Jam UTC real-time
+    // --- Tab Switching (SPA Vanilla JS) ---
+    function switchTab(tabId) {
+      // 1. Sembunyikan semua tab section
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+
+      // 2. Tampilkan tab yang dipilih dengan animasi fade-in
+      const activeSection = document.getElementById(`tab-${tabId}`);
+      if (activeSection) {
+        activeSection.classList.remove('hidden');
+      }
+
+      // 3. Update style link navigasi di Sidebar
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.className = "nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent";
+      });
+
+      const activeBtn = document.getElementById(`nav-btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.className = "nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-blue-400 bg-blue-600/15 border border-blue-500/30 shadow-xs";
+      }
+
+      // 4. Update judul topbar
+      const titleEl = document.getElementById('topbarTitle');
+      const subEl = document.getElementById('topbarSubtitle');
+      if (tabId === 'dashboard') {
+        titleEl.innerText = "Dashboard & EWS Real-time";
+        subEl.innerText = "Pemantauan & Peringatan Dini Cuaca Ekstrem Bandara Juanda";
+      } else if (tabId === 'policy') {
+        titleEl.innerText = "Policy & Standards";
+        subEl.innerText = "Tata Kelola Data Observasi & Standar Verifikasi WMO";
+      } else if (tabId === 'docs') {
+        titleEl.innerText = "Documentation & API";
+        subEl.innerText = "Spesifikasi Endpoint Backend FastAPI & Skema Dataset";
+      }
+
+      // 5. Tutup sidebar di layar mobile setelah klik menu
+      toggleSidebar(false);
+    }
+
+    // --- Mobile Drawer Toggle ---
+    function toggleSidebar(open) {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+
+      if (open) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    // --- Jam UTC Real-time ---
     function updateUtcClock() {
       const now = new Date();
       const h = String(now.getUTCHours()).padStart(2, '0');
@@ -130,6 +686,7 @@
     setInterval(updateUtcClock, 1000);
     updateUtcClock();
 
+    // --- Update Kartu Metrik Dashboard ---
     function updateMetrics(latest, latestRaw) {
       if (!latest) return;
       
@@ -160,10 +717,11 @@
       }
     }
 
+    // --- Fetch Real-time METAR Terbaru ---
     async function fetchLatest() {
       const btnText = document.getElementById('btnSyncText');
       const icon = document.getElementById('syncIcon');
-      btnText.innerText = "Menyinkronkan...";
+      btnText.innerText = "Syncing...";
       icon.classList.add('animate-spin');
 
       try {
@@ -174,14 +732,15 @@
         }
         await loadHistory();
       } catch (err) {
-        console.error("Gagal sync:", err);
+        console.error("Gagal sync data METAR:", err);
       } finally {
-        btnText.innerText = "Sync Data Sekarang";
+        btnText.innerText = "Sync Data";
         icon.classList.remove('animate-spin');
         resetCountdown();
       }
     }
 
+    // --- Load Riwayat dari Google Sheets ---
     async function loadHistory() {
       try {
         const res = await fetch(`${API_BASE}/api/metar/history`);
@@ -190,10 +749,10 @@
         
         const sourceBadge = document.getElementById('sourceBadge');
         if (json.source === "google_sheets") {
-          sourceBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40";
+          sourceBadge.className = "hidden sm:inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40";
           sourceBadge.innerText = "● Google Sheets";
         } else {
-          sourceBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-900/60 text-amber-300 border border-amber-500/40";
+          sourceBadge.className = "hidden sm:inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-900/60 text-amber-300 border border-amber-500/40";
           sourceBadge.innerText = "● Cache Lokal";
         }
 
@@ -202,11 +761,10 @@
           return;
         }
 
-        // Ambil data paling baru untuk kartu metrik
         const latest = records[records.length - 1];
         updateMetrics(latest, json.latest_raw);
 
-        // Render tabel urut dari paling baru (reverse)
+        // Render tabel data 20 baris terakhir (reverse urut dari terbaru)
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = records.slice().reverse().map(r => {
           const slot = r.slot_30min || r.timestamp || '-';
@@ -217,7 +775,7 @@
           const isBad = r.bad_weather === 1 || r.bad_weather === "1";
 
           return `
-            <tr class="hover:bg-slate-700/40 border-b border-slate-700/50 transition-colors">
+            <tr class="hover:bg-slate-800/40 border-b border-slate-800/60 transition-colors">
               <td class="px-4 py-2.5 font-sans text-slate-300 font-medium">${slot}</td>
               <td class="px-4 py-2.5 text-blue-400 font-semibold">${wind}</td>
               <td class="px-4 py-2.5 text-amber-400 font-semibold">${temp}</td>
@@ -236,6 +794,7 @@
       }
     }
 
+    // --- Countdown Timer 60 Detik ---
     function resetCountdown() {
       countdownSec = 60;
       updateCountdownDisplay();
@@ -258,6 +817,7 @@
       }, 1000);
     }
 
+    // Inisialisasi awal saat halaman dibuka
     loadHistory();
     startAutoRefreshTimer();
   </script>
