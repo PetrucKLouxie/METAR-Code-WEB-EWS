@@ -434,6 +434,7 @@ def serve_index():
 @app.get("/api")
 @app.get("/api/")
 @app.get("/api/index")
+@app.get("/api/index.py")
 def api_status():
     """Endpoint informasi status API"""
     return {
