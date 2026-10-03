@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WARR METAR Early Warning System - Juanda Airport</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']]
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="mathjax-script"></script>
   <style>
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
@@ -69,6 +81,13 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
           </svg>
           <span class="truncate">Documentation & API</span>
+        </button>
+        <!-- 4. Klasifikasi XGBoost -->
+        <button onclick="switchTab('xgboost')" id="nav-btn-xgboost" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"/>
+          </svg>
+          <span class="truncate">Klasifikasi XGBoost</span>
         </button>
       </nav>
     </div>
@@ -610,6 +629,219 @@
 
       </section>
 
+      <!-- TAB 4: DOKUMENTASI KLASIFIKASI XGBOOST -->
+      <section id="tab-xgboost" class="tab-content hidden max-w-7xl mx-auto space-y-6 animate-fade-in">
+        <div class="border-b border-slate-800 pb-5">
+          <div class="flex items-center gap-2 text-xs font-mono text-cyan-400 font-semibold uppercase tracking-wider mb-1">
+            <span>Dokumentasi Ilmiah & Operasional</span>
+            <span class="text-slate-600">/</span>
+            <span>Model Klasifikasi</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Klasifikasi Cuaca Bahaya dengan XGBoost</h1>
+          <p class="text-sm text-slate-400 mt-2 leading-relaxed max-w-4xl">
+            Landasan konseptual, formulasi matematis, rekayasa fitur atmosfer, dan metodologi evaluasi model berbasis observasi METAR WARR. Dokumentasi ini menjelaskan rancangan model; kinerja operasional harus dibuktikan melalui validasi data dan pemantauan berkelanjutan.
+          </p>
+          <div class="mt-4 p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-100/90 leading-relaxed">
+            <strong class="text-amber-300">Batas penggunaan:</strong> keluaran model adalah dukungan keputusan dan tidak menggantikan prakiraan/peringatan resmi BMKG atau keputusan operasional penerbangan oleh otoritas yang berwenang.
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_15rem] gap-6 items-start">
+          <nav aria-label="Daftar isi dokumentasi XGBoost" class="order-first lg:order-last lg:sticky lg:top-24 bg-slate-900 rounded-2xl border border-slate-800 p-4">
+            <h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">Daftar Isi</h2>
+            <ol class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5 text-xs">
+              <li><a class="block rounded-lg px-2.5 py-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800" href="#xgb-chapter-1">01 · Gambaran Umum</a></li>
+              <li><a class="block rounded-lg px-2.5 py-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800" href="#xgb-chapter-2">02 · Landasan Matematis</a></li>
+              <li><a class="block rounded-lg px-2.5 py-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800" href="#xgb-chapter-3">03 · Fitur Termodinamika</a></li>
+              <li><a class="block rounded-lg px-2.5 py-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800" href="#xgb-chapter-4">04 · Imbalance & Kalibrasi</a></li>
+              <li><a class="block rounded-lg px-2.5 py-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800" href="#xgb-chapter-5">05 · Integritas & Interpretasi</a></li>
+              <li><a class="block rounded-lg px-2.5 py-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800" href="#xgb-chapter-6">06 · Validasi & Literatur</a></li>
+            </ol>
+            <p class="mt-3 pt-3 border-t border-slate-800 text-[10px] text-slate-500 leading-relaxed">Gunakan tautan untuk berpindah bab. Persamaan dirender dengan MathJax.</p>
+          </nav>
+
+          <article class="min-w-0 space-y-6">
+            <section id="xgb-chapter-1" class="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 flex items-center justify-center font-bold text-sm">1</span>
+                <h2 class="text-lg sm:text-xl font-bold text-white">Gambaran Umum & Konseptual Sistem</h2>
+              </div>
+              <div class="text-sm text-slate-300 leading-relaxed space-y-3">
+                <p><strong class="text-white">Mengapa XGBoost.</strong> eXtreme Gradient Boosting membangun ansambel pohon keputusan secara bertahap dan mengoptimalkan objective yang mencakup galat prediksi serta kompleksitas model. Algoritma ini sesuai untuk data tabular METAR: mampu menangkap interaksi dan ambang nonlinier antarparameter, menangani skala fitur yang berbeda tanpa normalisasi wajib, serta menyediakan regularisasi dan mekanisme penanganan missing value. Keunggulan tersebut tidak menghilangkan kebutuhan akan validasi kronologis dan pemeriksaan kualitas data.</p>
+                <p><strong class="text-white">Masukan parser.</strong> Setiap rekaman rutin berjarak 30 menit (slot :00 dan :30 UTC), berisi empat variabel yang diekstrak dari METAR berikut. Laporan khusus SPECI dapat memiliki jarak waktu yang tidak seragam dan perlu ditangani sesuai kebijakan sampling.</p>
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                  <table class="w-full text-left text-xs min-w-[34rem]">
+                    <thead class="bg-slate-950 text-slate-300"><tr><th class="px-3 py-2.5">Fitur</th><th class="px-3 py-2.5">Simbol</th><th class="px-3 py-2.5">Satuan lazim</th><th class="px-3 py-2.5">Makna</th></tr></thead>
+                    <tbody class="divide-y divide-slate-800 text-slate-400">
+                      <tr><td class="px-3 py-2.5 font-mono text-amber-300">temperature</td><td class="px-3 py-2.5">\(T\)</td><td class="px-3 py-2.5">°C</td><td class="px-3 py-2.5">Suhu udara</td></tr>
+                      <tr><td class="px-3 py-2.5 font-mono text-cyan-300">dew_point</td><td class="px-3 py-2.5">\(T_d\)</td><td class="px-3 py-2.5">°C</td><td class="px-3 py-2.5">Suhu titik embun</td></tr>
+                      <tr><td class="px-3 py-2.5 font-mono text-emerald-300">pressure</td><td class="px-3 py-2.5">\(P\)</td><td class="px-3 py-2.5">hPa (QNH)</td><td class="px-3 py-2.5">Tekanan terkalibrasi ke MSL</td></tr>
+                      <tr><td class="px-3 py-2.5 font-mono text-blue-300">wind_speed</td><td class="px-3 py-2.5">\(V\)</td><td class="px-3 py-2.5">kt</td><td class="px-3 py-2.5">Kecepatan angin permukaan</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p><strong class="text-white">Target.</strong> Formulasi biner menetapkan \(y=0\) untuk kondisi aman/VFR dan \(y=1\) untuk kondisi bahaya yang didefinisikan secara eksplisit, misalnya TS, FG, atau squall. Definisi label harus konsisten dengan aturan METAR dan tujuan prediksi. Formulasi multikelas dapat memisahkan jenis bahaya, tetapi membutuhkan jumlah kejadian memadai untuk setiap kelas.</p>
+                <div class="p-3.5 rounded-xl bg-cyan-950/30 border-l-4 border-cyan-400 text-xs text-cyan-100/90">
+                  <strong class="text-cyan-300">Insight rare event:</strong> cuaca berbahaya dapat hanya mencakup sekitar 1–5% sampel. Akurasi keseluruhan yang tinggi dapat sekadar mencerminkan prediksi kelas aman; karena itu recall, precision, PR-AUC, dan evaluasi per kejadian/musim lebih informatif.
+                </div>
+              </div>
+            </section>
+
+            <section id="xgb-chapter-2" class="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 flex items-center justify-center font-bold text-sm">2</span>
+                <h2 class="text-lg sm:text-xl font-bold text-white">Landasan Matematis Algoritma XGBoost</h2>
+              </div>
+              <div class="text-sm text-slate-300 leading-relaxed space-y-4">
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Prediksi aditif bertahap</h3>
+                  <p>Setiap iterasi menambahkan pohon \(f_t\) ke skor/margin model sebelumnya:</p>
+                  <div class="math-display">\[\hat{y}_i^{(t)} = \hat{y}_i^{(t-1)} + f_t(x_i)\]</div>
+                  <p class="text-xs text-slate-400">Untuk klasifikasi biner, margin dipetakan ke probabilitas dengan sigmoid; \(x_i\) adalah vektor fitur pada pengamatan ke-\(i\).</p>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Objective orde dua dan regularisasi</h3>
+                  <p>Ekspansi Taylor orde dua terhadap loss pada iterasi \(t\) menghasilkan:</p>
+                  <div class="math-display">\[\mathcal{L}^{(t)} \approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t^2(x_i) \right] + \gamma T + \frac{1}{2}\lambda \sum_{j=1}^{T} w_j^2\]</div>
+                  <p class="text-xs text-slate-400">\(T\) adalah jumlah daun pohon, \(w_j\) skor daun ke-\(j\), \(\gamma\) penalti pembentukan daun, dan \(\lambda\) regularisasi L2 bobot daun. Formulasi lengkap dapat menambahkan penalti L1, \(\alpha \sum_{j=1}^{T}|w_j|\), untuk mendorong bobot lebih jarang; bentuk sederhana di atas menampilkan komponen L2.</p>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Gradient dan Hessian binary log-loss</h3>
+                  <div class="math-display">\[p_i = \sigma(\hat{y}_i) = \frac{1}{1+\exp(-\hat{y}_i)}, \qquad g_i = p_i-y_i, \qquad h_i=p_i(1-p_i)\]</div>
+                  <p class="text-xs text-slate-400">Gradient menunjukkan arah koreksi skor terhadap label aktual; Hessian adalah kelengkungan loss (variansi Bernoulli) yang menimbang besar langkah optimasi.</p>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Skor daun optimal dan gain pemisahan</h3>
+                  <div class="math-display">\[w_j^* = -\frac{\sum_{i \in I_j} g_i}{\sum_{i \in I_j} h_i + \lambda}\]</div>
+                  <p class="text-xs text-slate-400">\(I_j\) adalah himpunan sampel pada daun \(j\). Untuk kandidat split dengan agregat \(G_L,H_L\) dan \(G_R,H_R\):</p>
+                  <div class="math-display">\[\text{Gain} = \frac{1}{2} \left[ \frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{(G_L + G_R)^2}{H_L + H_R + \lambda} \right] - \gamma\]</div>
+                  <p class="text-xs text-slate-400">Pemisahan dipilih bila gain setelah penalti cukup besar; implementasi juga menerapkan batasan seperti kedalaman, jumlah minimum observasi, dan regularisasi lain.</p>
+                </div>
+              </div>
+            </section>
+
+            <section id="xgb-chapter-3" class="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 flex items-center justify-center font-bold text-sm">3</span>
+                <h2 class="text-lg sm:text-xl font-bold text-white">Rekayasa Fitur Termodinamika Atmosfer</h2>
+              </div>
+              <div class="text-sm text-slate-300 leading-relaxed space-y-3">
+                <p>Empat masukan METAR dapat diperkaya dengan fitur turunan yang merepresentasikan kejenuhan udara dan perubahan atmosfer. Semua fitur harus dihitung dari data yang tersedia pada waktu prediksi; statistik masa depan tidak boleh masuk ke fitur.</p>
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                  <table class="w-full text-left text-xs min-w-[38rem]">
+                    <thead class="bg-slate-950 text-slate-300"><tr><th class="px-3 py-2.5">Fitur turunan</th><th class="px-3 py-2.5">Definisi</th><th class="px-3 py-2.5">Interpretasi fisis</th></tr></thead>
+                    <tbody class="divide-y divide-slate-800 text-slate-400">
+                      <tr><td class="px-3 py-2.5 font-semibold text-cyan-300">Dew Point Depression (DPD)</td><td class="px-3 py-2.5">\(\Delta T = T-T_d\)</td><td class="px-3 py-2.5">Spread kecil menunjukkan udara dekat jenuh, mendukung kondensasi/kabut bila kondisi lain sesuai.</td></tr>
+                      <tr><td class="px-3 py-2.5 font-semibold text-blue-300">Relative Humidity (RH)</td><td class="px-3 py-2.5">Persamaan August–Roche–Magnus</td><td class="px-3 py-2.5">Pendekatan kelembapan relatif dari suhu dan titik embun.</td></tr>
+                      <tr><td class="px-3 py-2.5 font-semibold text-violet-300">Vapor Pressure Deficit (VPD)</td><td class="px-3 py-2.5">\(e_s(T)-e_s(T_d)\)</td><td class="px-3 py-2.5">Defisit tekanan uap; nilai kecil menunjukkan kondisi lebih dekat saturasi.</td></tr>
+                      <tr><td class="px-3 py-2.5 font-semibold text-emerald-300">Kerapatan udara kering</td><td class="px-3 py-2.5">\(\rho = \frac{P \times 100}{R_d(T+273.15)}\)</td><td class="px-3 py-2.5">Relasi gas ideal; \(P\) dalam hPa, faktor 100 mengubahnya ke Pa dan \(R_d \approx 287.05\,\mathrm{J\,kg^{-1}\,K^{-1}}\). Untuk kerapatan di lokasi idealnya gunakan tekanan stasiun; QNH adalah pendekatan yang perlu ditafsirkan dengan hati-hati.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="math-display">\[e_s(T) = 6.112 \times \exp\left(\frac{17.67 \times T}{T + 243.5}\right)\ \mathrm{hPa}, \qquad \mathrm{RH} = \frac{e_s(T_d)}{e_s(T)} \times 100\%\]</div>
+                <div class="math-display">\[\mathrm{VPD} = e_s(T) - e_s(T_d)\]</div>
+                <h3 class="font-semibold text-white pt-1">Tendensi temporal (interval rutin 30 menit)</h3>
+                <div class="math-display">\[\Delta P_{3\mathrm{h}} = P_t-P_{t-6}, \qquad \Delta T_{1\mathrm{h}} = T_t-T_{t-2}\]</div>
+                <p class="text-xs text-slate-400">Indeks \(t-6\) dan \(t-2\) merujuk enam dan dua slot 30-menit sebelumnya. Penurunan tekanan (nilai \(\Delta P_{3h}\) negatif) dapat mengindikasikan lintasan front/palung atau penguatan konveksi; penurunan suhu 1 jam dapat konsisten dengan masuknya cold pool/downdraft. Ini indikator kontekstual, bukan diagnosis tunggal, dan harus menyesuaikan gap SPECI serta data hilang.</p>
+                <div class="p-3.5 rounded-xl bg-blue-950/30 border-l-4 border-blue-400 text-xs text-blue-100/90">
+                  <strong class="text-blue-300">Insight fisis:</strong> DPD yang kecil membantu mengidentifikasi udara lembap dekat saturasi, sedangkan perubahan tekanan dan suhu memberi konteks evolusi sistem. Hubungan ini bersifat probabilistik; angin kencang atau satu nilai tekanan saja tidak membuktikan adanya cuaca bahaya.
+                </div>
+              </div>
+            </section>
+
+            <section id="xgb-chapter-4" class="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 flex items-center justify-center font-bold text-sm">4</span>
+                <h2 class="text-lg sm:text-xl font-bold text-white">Ketimpangan Kelas (Rare Event) & Kalibrasi</h2>
+              </div>
+              <div class="text-sm text-slate-300 leading-relaxed space-y-4">
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Pembobotan kelas minoritas</h3>
+                  <p>Bobot awal yang lazim untuk kelas bahaya dapat dihitung dari frekuensi data latih:</p>
+                  <div class="math-display">\[w_{\mathrm{pos}}=\frac{N_{\mathrm{aman}}}{N_{\mathrm{bahaya}}}, \qquad g_i = w_{\mathrm{pos}}(p_i-1)\ \ \text{untuk } y_i=1\]</div>
+                  <p class="text-xs text-slate-400">Ini meningkatkan penalti relatif atas kesalahan pada sampel positif; pada weighted log-loss, Hessian positif juga diskalakan dengan bobot. Bobot dihitung hanya dari partisi latih setiap fold, lalu dituning tanpa melihat label test.</p>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Ambang keputusan dan \(F_2\)</h3>
+                  <p>Ambang tetap 0,50 belum tentu sesuai ketika biaya gagal mendeteksi bahaya jauh lebih tinggi. Pilih threshold pada data validasi kronologis berdasarkan trade-off operasional; \(F_2\) memberi bobot recall lebih besar daripada precision:</p>
+                  <div class="math-display">\[F_2 = 5 \times \frac{\mathrm{Precision} \times \mathrm{Recall}}{4 \times \mathrm{Precision} + \mathrm{Recall}}\]</div>
+                  <p class="text-xs text-slate-400">Dalam rumus umum \(F_\beta\), \(\beta=2\) mengutamakan recall (False Negative lebih diperhatikan), tetapi False Positive tetap perlu diukur dan dikaji bersama forecaster/otoritas operasi.</p>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Kalibrasi probabilitas (Platt scaling)</h3>
+                  <p>Pembobotan kelas dapat menggeser probabilitas mentah. Kalibrasi sigmoid/Platt melalui <code class="text-cyan-300">CalibratedClassifierCV(method='sigmoid')</code> memetakan skor model ke probabilitas yang lebih reliabel. Fit kalibrator hanya pada prediksi out-of-fold atau data kalibrasi yang terpisah secara kronologis.</p>
+                  <p class="text-xs text-slate-400">Evaluasi reliabilitas dengan Brier Score \(\frac{1}{N}\sum_i(p_i-y_i)^2\), kurva reliabilitas, dan jumlah sampel per bin. Kalibrasi tidak memperbaiki diskriminasi model dan harus diuji ulang saat distribusi cuaca bergeser.</p>
+                </div>
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                  <table class="w-full text-left text-xs min-w-[34rem]">
+                    <thead class="bg-slate-950 text-slate-300"><tr><th class="px-3 py-2.5">Parameter/keputusan</th><th class="px-3 py-2.5">Peran</th><th class="px-3 py-2.5">Cara menetapkan</th></tr></thead>
+                    <tbody class="divide-y divide-slate-800 text-slate-400">
+                      <tr><td class="px-3 py-2.5 font-mono text-cyan-300">scale_pos_weight</td><td class="px-3 py-2.5">Penimbang kelas bahaya</td><td class="px-3 py-2.5">Rasio aman/bahaya pada data latih; tuning di fold validasi.</td></tr>
+                      <tr><td class="px-3 py-2.5 font-mono text-cyan-300">decision threshold</td><td class="px-3 py-2.5">Ambang probabilitas alarm</td><td class="px-3 py-2.5">Optimalkan \(F_2\) atau kriteria biaya pada validasi; dokumentasikan trade-off.</td></tr>
+                      <tr><td class="px-3 py-2.5 font-mono text-cyan-300">calibration method</td><td class="px-3 py-2.5">Reliabilitas probabilitas</td><td class="px-3 py-2.5">Sigmoid/Platt; evaluasi Brier Score pada periode yang tidak dipakai fit.</td></tr>
+                      <tr><td class="px-3 py-2.5 font-mono text-cyan-300">class definition</td><td class="px-3 py-2.5">Arti label target</td><td class="px-3 py-2.5">Tetapkan aturan TS/FG/squall dan horizon sebelum eksperimen.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            <section id="xgb-chapter-5" class="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 flex items-center justify-center font-bold text-sm">5</span>
+                <h2 class="text-lg sm:text-xl font-bold text-white">Integritas Fisik & Interpretabilitas</h2>
+              </div>
+              <div class="text-sm text-slate-300 leading-relaxed space-y-3">
+                <h3 class="font-semibold text-white">Monotone constraints</h3>
+                <p>Batasan monotonik dapat mencegah arah hubungan tertentu berlawanan dengan asumsi fisis yang dipilih, relatif terhadap fitur lain. Untuk keluaran skor risiko cuaca bahaya, contoh arah batasan adalah:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div class="p-3 rounded-xl bg-slate-950 border border-slate-800"><div class="font-mono text-blue-300 font-bold">wind_speed: +1</div><p class="text-slate-400 mt-1">Prediksi risiko tidak menurun ketika kecepatan angin meningkat.</p></div>
+                  <div class="p-3 rounded-xl bg-slate-950 border border-slate-800"><div class="font-mono text-cyan-300 font-bold">dpd: -1</div><p class="text-slate-400 mt-1">Prediksi risiko tidak meningkat ketika spread titik embun membesar.</p></div>
+                  <div class="p-3 rounded-xl bg-slate-950 border border-slate-800"><div class="font-mono text-emerald-300 font-bold">pressure: -1</div><p class="text-slate-400 mt-1">Prediksi risiko tidak meningkat ketika tekanan naik.</p></div>
+                </div>
+                <p class="text-xs text-slate-400">Arah harus dipetakan ke urutan kolom fitur yang benar saat mengonfigurasi XGBoost. Ini asumsi desain, bukan hukum universal untuk semua rezim cuaca; uji dampaknya pada skill prediksi, interaksi fitur, serta subset musim/lokasi dan dokumentasikan pengecualiannya.</p>
+                <h3 class="font-semibold text-white pt-1">SHAP (SHapley Additive exPlanations)</h3>
+                <p>SHAP menguraikan margin model menjadi baseline dan kontribusi fitur: \(m(x)=\phi_0+\sum_k\phi_k\). Untuk klasifikasi logistik, margin \(m\) berada pada skala log-odds dan dikonversi ke probabilitas dengan \(p=\sigma(m)\). Kontribusi pada skala margin tidak boleh langsung dijumlahkan sebagai perubahan probabilitas kecuali explainer memang menghasilkan penjelasan pada skala probabilitas.</p>
+                <div class="p-3.5 rounded-xl bg-violet-950/30 border-l-4 border-violet-400 text-xs text-violet-100/90">
+                  <strong class="text-violet-300">Transparansi:</strong> tampilkan nilai dasar, faktor yang menaikkan/menurunkan skor, periode data, dan ketidakpastian. SHAP menjelaskan perilaku model pada contoh tertentu; ia bukan bukti sebab-akibat meteorologis dan tidak menggantikan penilaian forecaster atau ATC.
+                </div>
+              </div>
+            </section>
+
+            <section id="xgb-chapter-6" class="scroll-mt-24 bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/30 flex items-center justify-center font-bold text-sm">6</span>
+                <h2 class="text-lg sm:text-xl font-bold text-white">Metodologi Validasi & Kajian Literatur</h2>
+              </div>
+              <div class="text-sm text-slate-300 leading-relaxed space-y-4">
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Siklus musiman dan variabilitas iklim</h3>
+                  <p>Validasi harian atau mingguan rentan hanya mengukur satu rezim cuaca dan menghasilkan seasonal bias. Dataset tahunan penuh memungkinkan cakupan siklus monsun dan variasi antar-musim; rentang multi-tahun (misalnya 2021–2026, dengan 2026 diperlakukan sebagai tahun parsial sampai lengkap) memberi gambaran variabilitas dan perubahan rezim terkait MJO/ENSO. Laporkan hasil per musim dan per tahun, bukan hanya skor gabungan.</p>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-white mb-1">Walk-forward / expanding time-series split</h3>
+                  <p>Jangan mengacak observasi waktu ke train dan test: fitur rolling, kejadian berkelanjutan, atau pola musiman dapat membocorkan informasi masa depan. Latih pada masa lalu dan uji pada blok waktu sesudahnya; pada expanding split, jendela train bertambah di setiap fold. Semua preprocessing, pemilihan fitur, bobot kelas, threshold, dan kalibrator dipelajari hanya dari bagian train/validasi masing-masing fold.</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div class="p-3 rounded-xl bg-slate-950 border border-slate-800"><div class="text-cyan-300 font-bold">Discrimination</div><p class="text-slate-400 mt-1">Recall, precision, \(F_2\), PR-AUC, dan confusion matrix dengan dukungan jumlah kejadian.</p></div>
+                  <div class="p-3 rounded-xl bg-slate-950 border border-slate-800"><div class="text-cyan-300 font-bold">Reliability</div><p class="text-slate-400 mt-1">Brier Score dan kurva reliabilitas pada periode uji yang tidak dipakai untuk kalibrasi.</p></div>
+                  <div class="p-3 rounded-xl bg-slate-950 border border-slate-800"><div class="text-cyan-300 font-bold">Operational value</div><p class="text-slate-400 mt-1">Lead time, false alarm, missed event, serta evaluasi per jenis bahaya dan musim.</p></div>
+                </div>
+                <h3 class="font-semibold text-white">Kajian literatur</h3>
+                <ul class="list-disc pl-5 space-y-2 text-xs text-slate-400">
+                  <li><strong class="text-slate-200">Wilks, D. S. (2011).</strong> <em>Statistical Methods in the Atmospheric Sciences</em>. Landasan metode verifikasi prakiraan atmosfer, termasuk tabel kontingensi kejadian dikotomis, kejadian langka, dan evaluasi reliabilitas.</li>
+                  <li><strong class="text-slate-200">WMO-No. 485.</strong> Rujukan WMO untuk praktik observasi meteorologi yang relevan dengan konsistensi dan mutu data masukan. Protokol evaluasi tahunan/musiman di sini merupakan rancangan validasi untuk menangkap variasi cuaca; jangan menafsirkannya sebagai kewajiban rentang tahun spesifik yang ditetapkan dokumen tersebut.</li>
+                  <li><strong class="text-slate-200">Hyndman, R. J. &amp; Athanasopoulos, G. (2018).</strong> <em>Forecasting: Principles and Practice</em>, edisi ke-2. Pembahasan evaluasi peramalan runtun waktu mendukung pemisahan kronologis, rolling-origin/walk-forward evaluation, dan pencegahan temporal leakage.</li>
+                </ul>
+                <div class="p-3.5 rounded-xl bg-emerald-950/30 border-l-4 border-emerald-400 text-xs text-emerald-100/90">
+                  <strong class="text-emerald-300">Prinsip validasi:</strong> keputusan final sebaiknya melaporkan performa per tahun/musim, ketidakpastian akibat sedikitnya kasus bahaya, serta ambang yang dipilih hanya dari validasi. Tahun parsial tidak boleh disajikan seolah-olah mencakup satu siklus tahunan penuh.
+                </div>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -654,6 +886,15 @@
       } else if (tabId === 'docs') {
         titleEl.innerText = "Documentation & API";
         subEl.innerText = "Spesifikasi Endpoint Backend FastAPI & Skema Dataset";
+      } else if (tabId === 'xgboost') {
+        titleEl.innerText = "Klasifikasi XGBoost";
+        subEl.innerText = "Landasan Matematis, Fitur Atmosfer & Metodologi Validasi";
+      }
+
+      if (tabId === 'xgboost' && window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([activeSection]).catch((error) => {
+          console.error("Gagal merender persamaan dokumentasi XGBoost:", error);
+        });
       }
 
       // 5. Tutup sidebar di layar mobile setelah klik menu
