@@ -1,12 +1,9 @@
 import json
 import math
 import re
+import struct
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-import joblib
-import xgboost
-
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "saved_models"
@@ -124,28 +121,68 @@ def _load_model(horizon):
     if horizon in _MODEL_ERRORS:
         return None
 
-    candidate_paths = []
-    for suffix in ("joblib", "json"):
-        path = MODEL_DIR / f"xgb_model_{horizon}.{suffix}"
-        if path.is_file():
-            candidate_paths.append(path)
-
-    if not candidate_paths:
+    model_path = MODEL_DIR / f"xgb_model_{horizon}.json"
+    if not model_path.is_file():
         return None
 
-    model_path = candidate_paths[0]
     try:
-        if model_path.suffix.lower() == ".json":
-            model = xgboost.Booster()
-            model.load_model(str(model_path))
-            _MODEL_CACHE[horizon] = model
-        else:
-            _MODEL_CACHE[horizon] = joblib.load(model_path)
+        with model_path.open("r", encoding="utf-8") as model_file:
+            serialized_model = json.load(model_file)
+
+        learner = serialized_model["learner"]
+        if learner["objective"]["name"] != "binary:logistic":
+            raise ValueError("Model harus menggunakan objective binary:logistic.")
+
+        raw_base_score = learner["learner_model_param"]["base_score"]
+        if isinstance(raw_base_score, str):
+            parsed_base_score = json.loads(raw_base_score)
+            raw_base_score = parsed_base_score[0] if isinstance(parsed_base_score, list) else parsed_base_score
+        base_score = float(raw_base_score)
+        if not 0.0 < base_score < 1.0:
+            raise ValueError("base_score model harus berada di antara 0 dan 1.")
+
+        trees = []
+        for tree in learner["gradient_booster"]["model"]["trees"]:
+            if any(tree.get("split_type", [])):
+                raise ValueError("Model dengan categorical split tidak didukung.")
+            trees.append({
+                "left": tree["left_children"],
+                "right": tree["right_children"],
+                "features": tree["split_indices"],
+                "conditions": tree["split_conditions"],
+                "default_left": tree["default_left"],
+            })
+
+        _MODEL_CACHE[horizon] = {
+            "base_margin": math.log(base_score / (1.0 - base_score)),
+            "trees": trees,
+        }
     except Exception as error:
         _MODEL_ERRORS[horizon] = error
         print(f"Model +{horizon} gagal dimuat: {error!r}", flush=True)
         return None
     return _MODEL_CACHE[horizon]
+
+
+def _predict_booster_probability(model, features):
+    float32_features = [struct.unpack("<f", struct.pack("<f", value))[0] for value in features]
+    margin = model["base_margin"]
+    for tree in model["trees"]:
+        node = 0
+        while tree["left"][node] != -1:
+            value = float32_features[tree["features"][node]]
+            if math.isnan(value):
+                node = tree["left"][node] if tree["default_left"][node] else tree["right"][node]
+            elif value < tree["conditions"][node]:
+                node = tree["left"][node]
+            else:
+                node = tree["right"][node]
+        margin += tree["conditions"][node]
+
+    if margin >= 0.0:
+        return 1.0 / (1.0 + math.exp(-margin))
+    exp_margin = math.exp(margin)
+    return exp_margin / (1.0 + exp_margin)
 
 
 def _feature_vector(observations):
@@ -228,15 +265,11 @@ def predict_from_observations(records):
             continue
 
         try:
-            if isinstance(model, xgboost.Booster):
-                matrix = xgboost.DMatrix([vector], feature_names=FEATURE_NAMES)
-                probability = float(model.predict(matrix)[0])
-                platt_params = config.get("platt_params")
-                if platt_params:
-                    calibration_score = platt_params["A"] * probability + platt_params["B"]
-                    probability = 1.0 / (1.0 + math.exp(min(700.0, calibration_score)))
-            else:
-                probability = float(model.predict_proba([vector])[0][1])
+            probability = _predict_booster_probability(model, vector)
+            platt_params = config.get("platt_params")
+            if platt_params:
+                calibration_score = platt_params["A"] * probability + platt_params["B"]
+                probability = 1.0 / (1.0 + math.exp(min(700.0, calibration_score)))
         except Exception as error:
             print(f"Inferensi model +{horizon} gagal: {error!r}", flush=True)
             predictions.append({

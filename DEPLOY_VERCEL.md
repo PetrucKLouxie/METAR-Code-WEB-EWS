@@ -13,8 +13,8 @@ Project ini sudah dikonfigurasi penuh dan siap untuk di-deploy ke **Vercel** men
 
 ## Inferensi XGBoost
 - `POST /api/xgboost/predict` menerima `{"source":"gsheet"}` untuk riwayat Sheets/cache lokal atau `{"source":"manual","raw_metars":[...]}` untuk METAR mentah. Input manual perlu minimal 7 laporan berurutan yang berjarak 30 menit.
-- Model dan konfigurasi inferensi berasal dari `saved_models/`; model dimuat lazy dan disimpan pada cache memori instance. Grafik WMO disajikan dari `public/assets/` sebagai aset statis.
-- Artefak `.joblib` berisi objek scikit-learn/XGBoost ter-pickle. Versi `xgboost` dan `scikit-learn` saat deploy harus sama dengan versi saat model disimpan; versi training belum tercatat di konfigurasi, jadi uji kompatibilitas artefak sebelum deploy. Artefak saat ini perlu diekspor ulang atau diselaraskan versinya bila loader menghasilkan `input stream corrupted`.
+- Model dan konfigurasi inferensi berasal dari `saved_models/`; lima artefak JSON dimuat lazy dan disimpan pada cache memori instance. Tree numerik `binary:logistic` dievaluasi dengan Python standard library, sehingga fungsi Vercel tidak memasang XGBoost, NumPy, atau scikit-learn. Parameter kalibrasi Platt dari konfigurasi tetap digunakan.
+- `vercel.json` hanya menyertakan halaman, konfigurasi/model JSON, dan aset yang diperlukan. Folder virtual environment lokal serta artefak `.joblib` lama dikecualikan dari deployment.
 - Lima horizon (1h, 3h, 9h, 18h, 24h) tersedia di `saved_models/`.
 
 ---

@@ -1,10 +1,7 @@
-# Production loads native XGBoost JSON boosters; scikit-learn is not required.
+# XGBoost JSON trees are scored with the Python standard library.
 fastapi==0.115.6
 uvicorn==0.34.0
 requests==2.32.3
 gspread==6.1.4
 google-auth==2.38.0
 apscheduler==3.11.0
-joblib==1.6.0
-numpy==2.1.3
-xgboost==3.4.1
