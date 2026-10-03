@@ -2,7 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/**/*.py": {
-      "includeFiles": "index.html"
+      "includeFiles": [
+        "index.html",
+        "saved_models/model_config.json",
+        "saved_models/xgb_model_*.joblib"
+      ],
+      "memory": 1024,
+      "maxDuration": 30
     }
   },
   "rewrites": [

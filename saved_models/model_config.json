@@ -1,0 +1,146 @@
+{
+  "system_architecture": {
+    "name": "Horizon-Specific Direct Multi-Horizon XGBoost",
+    "observation_interval_minutes": 30,
+    "input_features_count": 14,
+    "target_horizons": [
+      "1h",
+      "3h",
+      "9h",
+      "18h",
+      "24h"
+    ]
+  },
+  "dataset_allocation": {
+    "training_set": {
+      "period": "01 Januari 2021 s/d 31 Desember 2024 (4 Tahun Kalender Penuh)",
+      "sample_size": 70128,
+      "hazardous_events": 3148,
+      "base_rate_percentage": 4.49,
+      "mathematical_execution": "Optimasi Gradient Boosting Taylor Orde 2 dengan pembobotan scale_pos_weight & Monotone Constraints."
+    },
+    "validation_set": {
+      "period": "01 Januari 2025 s/d 31 Desember 2025 (1 Tahun Kalender Penuh)",
+      "sample_size": 17520,
+      "hazardous_events": 930,
+      "base_rate_percentage": 5.31,
+      "mathematical_execution": "Platt Scaling Sigmoid Calibration & Optimasi Dual-Threshold (F2 untuk Waspada, F0.5 untuk Bahaya)."
+    },
+    "test_set": {
+      "period": "01 Januari 2026 s/d Sekarang (Oktober 2026)",
+      "sample_size": 13214,
+      "hazardous_events": 507,
+      "base_rate_percentage": 3.84,
+      "mathematical_execution": "Verifikasi Tabel Kontingensi 2x2 Standar WMO-No. 485 (POD, FAR, CSI, HSS, Brier Score)."
+    }
+  },
+  "feature_names": [
+    "temperature",
+    "dew_point",
+    "dpd",
+    "pressure",
+    "wind_speed",
+    "relative_humidity",
+    "vpd",
+    "air_density",
+    "wind_energy_proxy",
+    "pressure_tendency_3h",
+    "temp_tendency_1h",
+    "wind_acceleration_1h",
+    "hour_sin",
+    "hour_cos"
+  ],
+  "horizons": {
+    "1h": {
+      "lead_steps": 2,
+      "lead_time_minutes": 60,
+      "model_file": "Model XGBoost/xgb_model_1h.joblib",
+      "thresholds": {
+        "th_waspada": 0.105,
+        "th_bahaya": 0.29
+      },
+      "metrics_test_2026": {
+        "accuracy": 0.869,
+        "pod_hit_rate": 0.6154,
+        "far_false_alarm": 0.8312,
+        "csi_threat_score": 0.1527,
+        "hss_skill_score": 0.2179,
+        "prauc": 0.216,
+        "brier_score": 0.0329
+      }
+    },
+    "3h": {
+      "lead_steps": 6,
+      "lead_time_minutes": 180,
+      "model_file": "Model XGBoost/xgb_model_3h.joblib",
+      "thresholds": {
+        "th_waspada": 0.1,
+        "th_bahaya": 0.175
+      },
+      "metrics_test_2026": {
+        "accuracy": 0.8428,
+        "pod_hit_rate": 0.6726,
+        "far_false_alarm": 0.8485,
+        "csi_threat_score": 0.1411,
+        "hss_skill_score": 0.197,
+        "prauc": 0.1532,
+        "brier_score": 0.0338
+      }
+    },
+    "9h": {
+      "lead_steps": 18,
+      "lead_time_minutes": 540,
+      "model_file": null,
+      "model_status": "missing_artifact",
+      "thresholds": {
+        "th_waspada": 0.095,
+        "th_bahaya": 0.155
+      },
+      "metrics_test_2026": {
+        "accuracy": 0.8424,
+        "pod_hit_rate": 0.6238,
+        "far_false_alarm": 0.8571,
+        "csi_threat_score": 0.1315,
+        "hss_skill_score": 0.1815,
+        "prauc": 0.1495,
+        "brier_score": 0.0339
+      }
+    },
+    "18h": {
+      "lead_steps": 36,
+      "lead_time_minutes": 1080,
+      "model_file": "Model XGBoost/xgb_model_18h.joblib",
+      "thresholds": {
+        "th_waspada": 0.09,
+        "th_bahaya": 0.15
+      },
+      "metrics_test_2026": {
+        "accuracy": 0.861,
+        "pod_hit_rate": 0.4909,
+        "far_false_alarm": 0.8662,
+        "csi_threat_score": 0.1175,
+        "hss_skill_score": 0.1606,
+        "prauc": 0.1431,
+        "brier_score": 0.0339
+      }
+    },
+    "24h": {
+      "lead_steps": 48,
+      "lead_time_minutes": 1440,
+      "model_file": "Model XGBoost/xgb_model_24h.joblib",
+      "thresholds": {
+        "th_waspada": 0.09,
+        "th_bahaya": 0.165
+      },
+      "metrics_test_2026": {
+        "accuracy": 0.8408,
+        "pod_hit_rate": 0.6056,
+        "far_false_alarm": 0.8632,
+        "csi_threat_score": 0.1256,
+        "hss_skill_score": 0.1721,
+        "prauc": 0.1591,
+        "brier_score": 0.0335
+      }
+    }
+  }
+}

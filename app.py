@@ -5,11 +5,13 @@ import time
 import requests
 import gspread
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from predict_service import predict_from_gsheet, predict_from_raw_metar_list
 
 try:
     from google.oauth2.service_account import Credentials
@@ -22,6 +24,9 @@ except ImportError:
         pass
 
 app = FastAPI(title="WARR METAR Collector & Parser")
+ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public", "assets")
+if os.path.isdir(ASSET_DIR):
+    app.mount("/assets", StaticFiles(directory=ASSET_DIR), name="assets")
 
 # Izinkan frontend mengakses API backend (CORS)
 app.add_middleware(
@@ -511,6 +516,7 @@ def api_status():
         "endpoints": {
             "latest": "/api/metar/latest",
             "history": "/api/metar/history",
+            "xgboost_predict": "/api/xgboost/predict",
             "docs": "/docs"
         },
         "version": "2.4-UTC"
@@ -558,3 +564,31 @@ def get_history():
         "latest_raw": _latest_raw_metar,
         "timezone": "UTC"
     }
+
+@app.post("/api/xgboost/predict")
+def predict_xgboost(payload: dict):
+    """Memprediksi risiko multi-horizon dari METAR manual atau Google Sheets."""
+    source = payload.get("source", "manual")
+    try:
+        if source == "gsheet":
+            try:
+                sheet = get_sheet()
+                records, _ = get_recent_rows_from_sheet(sheet, count=10)
+                result_source = "google_sheets"
+            except Exception:
+                records = load_local_history()[-10:]
+                result_source = "local_storage"
+            result = predict_from_gsheet(records)
+        else:
+            raw_metars = payload.get("raw_metars")
+            if not raw_metars and payload.get("raw_text"):
+                raw_metars = [line.strip() for line in payload["raw_text"].splitlines() if line.strip()]
+            result = predict_from_raw_metar_list(raw_metars)
+            result_source = "manual_metar"
+        result["source"] = result_source
+        return result
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        print(f"XGBoost inference failed: {error!r}; cause={error.__cause__!r}", flush=True)
+        raise HTTPException(status_code=503, detail="Inferensi XGBoost tidak tersedia saat ini.") from error

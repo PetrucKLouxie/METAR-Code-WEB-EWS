@@ -25,6 +25,11 @@
     .animate-fade-in {
       animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
+    .math-display {
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
   </style>
 </head>
 <body class="bg-slate-800 text-slate-200 min-h-screen font-sans antialiased flex flex-col md:flex-row">
@@ -631,6 +636,58 @@
 
       <!-- TAB 4: DOKUMENTASI KLASIFIKASI XGBOOST -->
       <section id="tab-xgboost" class="tab-content hidden max-w-7xl mx-auto space-y-6 animate-fade-in">
+        <section class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-5" aria-labelledby="xgb-live-title">
+          <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+            <div>
+              <div class="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-300">Inferensi Operasional</div>
+              <h1 id="xgb-live-title" class="text-xl sm:text-2xl font-bold text-white mt-1">Peringatan Multi-Horizon WARR</h1>
+              <p class="text-xs text-slate-400 mt-1">Gunakan 7+ observasi berurutan pada interval 30 menit untuk fitur tendensi 1h dan 3h.</p>
+            </div>
+            <button id="btnPredictSheets" onclick="loadPredictionFromSheets()" class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 text-white text-sm font-semibold transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
+              Prediksi dari Google Sheets
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] gap-5 border-t border-slate-800 pt-5">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-live="polite">
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800"><div class="text-[11px] text-slate-400">Suhu / Titik Embun</div><div id="xgbTemp" class="font-mono font-bold text-amber-300 mt-1">-- / -- °C</div></div>
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800"><div class="text-[11px] text-slate-400">DPD</div><div id="xgbDpd" class="font-mono font-bold text-cyan-300 mt-1">-- °C</div></div>
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800"><div class="text-[11px] text-slate-400">Tekanan QNH</div><div id="xgbPressure" class="font-mono font-bold text-emerald-300 mt-1">-- hPa</div></div>
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800"><div class="text-[11px] text-slate-400">Tendensi Tekanan 3h</div><div id="xgbPressureTrend" class="font-mono font-bold text-blue-300 mt-1">-- hPa</div></div>
+            </div>
+            <form onsubmit="submitManualPrediction(event)" class="space-y-2">
+              <label for="manualMetars" class="block text-xs font-semibold text-slate-300">Input METAR manual, satu laporan per baris</label>
+              <textarea id="manualMetars" rows="4" class="w-full resize-y rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 font-mono text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500" placeholder="Tempel minimal 7 METAR berurutan, interval 30 menit&#10;Contoh: METAR WARR 032100Z 24005KT 9999 SCT018 31/24 Q1010"></textarea>
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[11px] text-slate-500">Wajib memuat suhu/titik embun, QNH, dan angin KT.</span>
+                <button id="btnPredictManual" type="submit" class="shrink-0 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold transition">Jalankan prediksi</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-4">
+            <p id="xgbPredictionMessage" class="text-xs text-slate-400" role="status">Menunggu input observasi.</p>
+            <p id="xgbObservedAt" class="font-mono text-[11px] text-slate-500"></p>
+          </div>
+          <div id="xgbHorizonCards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3" aria-live="polite"></div>
+          <p class="text-[11px] text-amber-200/80">Dukungan keputusan saja. Ikuti informasi cuaca dan prosedur resmi BMKG serta otoritas penerbangan. Horizon +9h ditampilkan tidak tersedia bila artefak model belum terpasang.</p>
+        </section>
+
+        <section class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4" aria-labelledby="xgb-evaluation-title">
+          <div>
+            <div class="text-xs font-mono font-semibold uppercase tracking-wider text-cyan-300">Uji WMO · Periode 2026</div>
+            <h2 id="xgb-evaluation-title" class="text-lg sm:text-xl font-bold text-white mt-1">Verifikasi dan Ambang Operasional</h2>
+          </div>
+          <img src="/assets/wmo_verification_dashboard.png" alt="Dashboard verifikasi WMO: skor CSI, HSS, PR-AUC, POD dan FAR, ambang WASPADA dan BAHAYA, serta Brier Score untuk horizon 1 hingga 24 jam." loading="lazy" class="w-full h-auto rounded-lg border border-slate-700 bg-white">
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-xs leading-relaxed">
+            <div class="p-3.5 rounded-lg bg-slate-950 border border-slate-800"><h3 class="font-bold text-cyan-300">Metrik WMO dan no-skill</h3><p class="text-slate-400 mt-1">CSI, HSS, dan PR-AUC berada di atas garis prior kejadian 0,038 pada panel. Garis itu adalah baseline PR-AUC; CSI/HSS juga dibandingkan terhadap skill nol, bukan dianggap memiliki baseline identik.</p></div>
+            <div class="p-3.5 rounded-lg bg-slate-950 border border-slate-800"><h3 class="font-bold text-emerald-300">Trade-off POD vs FAR</h3><p class="text-slate-400 mt-1">Ambang mengutamakan peluang menangkap kejadian (POD) demi kewaspadaan keselamatan penerbangan. FAR pada uji ini tetap tinggi, sehingga alarm perlu ditinjau bersama informasi resmi dan prosedur operasi.</p></div>
+            <div class="p-3.5 rounded-lg bg-slate-950 border border-slate-800"><h3 class="font-bold text-amber-300">Ambang dual-level</h3><p class="text-slate-400 mt-1">WASPADA menggunakan threshold berbasis F2-Score untuk menitikberatkan recall; BAHAYA menggunakan F0.5-Score untuk keputusan berpresisi lebih tinggi. Ambang dipisahkan per horizon.</p></div>
+            <div class="p-3.5 rounded-lg bg-slate-950 border border-slate-800"><h3 class="font-bold text-violet-300">Keandalan probabilitas</h3><p class="text-slate-400 mt-1">Probabilitas dikalibrasi dengan Platt Scaling sigmoid. Brier Score yang lebih rendah menunjukkan probabilitas lebih dekat ke observasi; pemantauan kalibrasi tetap diperlukan.</p></div>
+          </div>
+        </section>
+
         <div class="border-b border-slate-800 pb-5">
           <div class="flex items-center gap-2 text-xs font-mono text-cyan-400 font-semibold uppercase tracking-wider mb-1">
             <span>Dokumentasi Ilmiah & Operasional</span>
@@ -852,6 +909,7 @@
     const API_BASE = window.location.origin.startsWith("http") ? "" : "http://127.0.0.1:8000";
     let countdownSec = 60;
     let countdownTimer = null;
+    let xgbPredictionLoaded = false;
 
     // --- Tab Switching (SPA Vanilla JS) ---
     function switchTab(tabId) {
@@ -888,7 +946,8 @@
         subEl.innerText = "Spesifikasi Endpoint Backend FastAPI & Skema Dataset";
       } else if (tabId === 'xgboost') {
         titleEl.innerText = "Klasifikasi XGBoost";
-        subEl.innerText = "Landasan Matematis, Fitur Atmosfer & Metodologi Validasi";
+        subEl.innerText = "Peringatan Multi-Horizon, Fitur Atmosfer & Verifikasi WMO";
+        if (!xgbPredictionLoaded) loadPredictionFromSheets();
       }
 
       if (tabId === 'xgboost' && window.MathJax && window.MathJax.typesetPromise) {
@@ -899,6 +958,98 @@
 
       // 5. Tutup sidebar di layar mobile setelah klik menu
       toggleSidebar(false);
+    }
+
+    function formatXgbValue(value, digits = 1) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number.toFixed(digits) : "-";
+    }
+
+    function setXgbPredictionLoading(isLoading, message) {
+      document.getElementById('btnPredictSheets').disabled = isLoading;
+      document.getElementById('btnPredictManual').disabled = isLoading;
+      document.getElementById('xgbPredictionMessage').innerText = message;
+    }
+
+    async function loadPredictionFromSheets() {
+      await requestXgbPrediction({ source: "gsheet" });
+    }
+
+    async function submitManualPrediction(event) {
+      event.preventDefault();
+      const rawMetars = document.getElementById('manualMetars').value
+        .split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      if (rawMetars.length < 7) {
+        setXgbPredictionLoading(false, "Masukkan minimal 7 baris METAR yang valid.");
+        return;
+      }
+      await requestXgbPrediction({ source: "manual", raw_metars: rawMetars });
+    }
+
+    async function requestXgbPrediction(payload) {
+      setXgbPredictionLoading(true, "Menghitung prediksi multi-horizon...");
+      try {
+        const response = await fetch(`${API_BASE}/api/xgboost/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Permintaan prediksi gagal.");
+        renderXgbPrediction(result);
+        xgbPredictionLoaded = true;
+        const sourceLabel = result.source === "google_sheets" ? "Google Sheets" :
+          result.source === "local_storage" ? "cache lokal" : "METAR manual";
+        setXgbPredictionLoading(false, `Prediksi diperbarui dari ${sourceLabel} (${result.observations_used} observasi).`);
+      } catch (error) {
+        setXgbPredictionLoading(false, error.message || "Inferensi tidak tersedia.");
+      }
+    }
+
+    function renderXgbPrediction(result) {
+      const current = result.current;
+      document.getElementById('xgbTemp').innerText = `${formatXgbValue(current.temperature)} / ${formatXgbValue(current.dew_point)} °C`;
+      document.getElementById('xgbDpd').innerText = `${formatXgbValue(current.dpd)} °C`;
+      document.getElementById('xgbPressure').innerText = `${formatXgbValue(current.pressure)} hPa`;
+      const trend = Number(current.pressure_tendency_3h);
+      document.getElementById('xgbPressureTrend').innerText = `${Number.isFinite(trend) && trend > 0 ? "+" : ""}${formatXgbValue(trend)} hPa`;
+      document.getElementById('xgbObservedAt').innerText = `Observasi terakhir: ${result.observed_at_utc}`;
+
+      const colorClasses = {
+        green: "border-emerald-500/40 bg-emerald-950/20",
+        amber: "border-amber-500/50 bg-amber-950/20",
+        red: "border-red-500/60 bg-red-950/25"
+      };
+      const badgeClasses = {
+        green: "bg-emerald-900/70 text-emerald-300 border-emerald-500/40",
+        amber: "bg-amber-900/70 text-amber-200 border-amber-500/50",
+        red: "bg-red-900/70 text-red-200 border-red-500/50"
+      };
+      document.getElementById('xgbHorizonCards').innerHTML = result.predictions.map(item => {
+        if (!item.available) {
+          return `<article class="min-w-0 p-4 rounded-lg border border-slate-700 bg-slate-950/70">
+            <h3 class="font-mono font-bold text-white">+${item.horizon}</h3>
+            <div class="mt-3 text-sm font-semibold text-slate-400">Model belum tersedia</div>
+            <p class="text-[11px] text-slate-500 mt-2">${item.message}</p>
+          </article>`;
+        }
+        const tone = item.status.color;
+        return `<article class="min-w-0 p-4 rounded-lg border ${colorClasses[tone] || colorClasses.green}">
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="font-mono font-bold text-white">+${item.horizon}</h3>
+            <span class="px-2 py-1 rounded border text-[10px] leading-none font-bold ${badgeClasses[tone] || badgeClasses.green}">LEVEL ${item.status.level} · ${item.status.label}</span>
+          </div>
+          <div class="mt-3 text-2xl font-mono font-extrabold text-white">${formatXgbValue(item.probability * 100)}<span class="text-sm text-slate-400">%</span></div>
+          <div class="mt-2 space-y-1 text-[10px] text-slate-400 font-mono">
+            <div>Waspada ≥ ${formatXgbValue(item.thresholds.th_waspada * 100)}%</div>
+            <div>Bahaya ≥ ${formatXgbValue(item.thresholds.th_bahaya * 100)}%</div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-700/80 text-[10px] leading-relaxed">
+            <div class="text-cyan-200">${item.target_wib}</div><div class="text-slate-500">${item.target_utc}</div>
+            <p class="text-slate-300 mt-2">${item.recommendation}</p>
+          </div>
+        </article>`;
+      }).join('');
     }
 
     // --- Mobile Drawer Toggle ---

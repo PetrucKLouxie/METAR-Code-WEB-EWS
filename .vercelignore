@@ -1,0 +1,10 @@
+.git
+.venv
+__pycache__
+.env*
+credentials.json
+metar_history.json
+Model XGBoost/*.png
+Model XGBoost/*.joblib
+Model XGBoost/model_config.json
+saved_models/*.png
