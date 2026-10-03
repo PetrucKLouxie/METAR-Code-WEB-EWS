@@ -5,12 +5,11 @@ import time
 import requests
 import gspread
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from predict_service import load_models, models_loaded, predict_horizons
 
 try:
     from google.oauth2.service_account import Credentials
@@ -23,16 +22,6 @@ except ImportError:
         pass
 
 app = FastAPI(title="WARR METAR Collector & Parser")
-
-
-@app.on_event("startup")
-def load_hazard_models():
-    """Load available horizon models once; keep the METAR API available without artifacts."""
-    try:
-        load_models()
-    except FileNotFoundError as exc:
-        print(f"Model XGBoost belum tersedia; endpoint prediksi nonaktif: {exc}")
-
 
 # Izinkan frontend mengakses API backend (CORS)
 app.add_middleware(
@@ -74,12 +63,6 @@ _latest_parsed_metar = None
 _last_saved_metar_code = None
 _last_saved_slot_time = None
 SHEET_RETRY_INTERVAL = 60
-PREDICTION_SHEET_NAME = os.environ.get("PREDICTION_SHEET_NAME", "XGBoost Predictions")
-PREDICTION_CACHE_SECONDS = 45
-_prediction_worksheet = None
-_forecast_cache = None
-_forecast_cache_time = 0.0
-_logged_forecast_times = set()
 
 def get_credentials():
     """
@@ -575,147 +558,3 @@ def get_history():
         "latest_raw": _latest_raw_metar,
         "timezone": "UTC"
     }
-
-
-def _get_prediction_worksheet():
-    global _prediction_worksheet
-    if _prediction_worksheet is not None:
-        return _prediction_worksheet
-
-    get_sheet()
-    if _cached_sheet_client is None:
-        raise RuntimeError("Koneksi Google Sheets belum tersedia.")
-    spreadsheet = _cached_sheet_client.open_by_key(SPREADSHEET_ID)
-    try:
-        worksheet = spreadsheet.worksheet(PREDICTION_SHEET_NAME)
-    except gspread.exceptions.WorksheetNotFound:
-        worksheet = spreadsheet.add_worksheet(
-            title=PREDICTION_SHEET_NAME,
-            rows=1000,
-            cols=23,
-        )
-
-    headers = [
-        "latest_metar_time_utc",
-        "generated_at_utc",
-        "source",
-    ]
-    for horizon in ("1h", "3h", "9h", "18h", "24h"):
-        headers.extend(
-            [
-                f"target_{horizon}_utc",
-                f"prob_{horizon}_percent",
-                f"threshold_{horizon}_percent",
-                f"warning_{horizon}",
-            ]
-        )
-    if worksheet.acell("A1").value != headers[0]:
-        worksheet.update(values=[headers], range_name="A1:W1")
-    _prediction_worksheet = worksheet
-    return worksheet
-
-
-def _persist_forecast(forecast):
-    observed_at = forecast["latest_metar_time"]
-    if observed_at in _logged_forecast_times:
-        return {"saved": True, "sheet": PREDICTION_SHEET_NAME, "duplicate": True}
-
-    worksheet = _get_prediction_worksheet()
-    existing_observations = set(worksheet.col_values(1))
-    if observed_at in existing_observations:
-        _logged_forecast_times.add(observed_at)
-        return {"saved": True, "sheet": PREDICTION_SHEET_NAME, "duplicate": True}
-
-    row = [
-        observed_at,
-        forecast["generated_at_utc"],
-        forecast["data_source"],
-    ]
-    for item in forecast["forecasts"]:
-        row.extend(
-            [
-                item["target_time_utc"],
-                item["prob_percent"],
-                item["threshold_percent"],
-                item["warning_alert"],
-            ]
-        )
-    worksheet.append_row(row, value_input_option="USER_ENTERED")
-    _logged_forecast_times.add(observed_at)
-    return {"saved": True, "sheet": PREDICTION_SHEET_NAME, "duplicate": False}
-
-
-@app.get("/api/xgboost/predict")
-def get_xgboost_forecast():
-    """Predict all direct horizons from the latest seven METAR Sheet records."""
-    global _forecast_cache, _forecast_cache_time
-    now_monotonic = time.monotonic()
-    if (
-        _forecast_cache is not None
-        and now_monotonic - _forecast_cache_time < PREDICTION_CACHE_SECONDS
-    ):
-        return {**_forecast_cache, "cached": True}
-
-    if not models_loaded():
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Model prediksi belum tersedia. Jalankan train_and_save_models.py "
-                "dengan data historis berlabel untuk menghasilkan saved_models/."
-            ),
-        )
-
-    try:
-        sheet = get_sheet()
-        records, _ = get_recent_rows_from_sheet(sheet, count=7)
-    except (
-        FileNotFoundError,
-        OSError,
-        RuntimeError,
-        ValueError,
-        gspread.exceptions.GSpreadException,
-        requests.RequestException,
-    ) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Gagal membaca tujuh observasi terakhir dari Google Sheets: {exc}",
-        ) from exc
-
-    if len(records) < 7:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Prediksi membutuhkan 7 observasi METAR; Google Sheets hanya "
-                f"mengembalikan {len(records)}."
-            ),
-        )
-
-    try:
-        forecast = predict_horizons(records)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
-    forecast["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
-    forecast["data_source"] = "google_sheets"
-    try:
-        forecast["persistence"] = _persist_forecast(forecast)
-    except (
-        FileNotFoundError,
-        OSError,
-        RuntimeError,
-        ValueError,
-        gspread.exceptions.GSpreadException,
-        requests.RequestException,
-    ) as exc:
-        forecast["persistence"] = {
-            "saved": False,
-            "sheet": PREDICTION_SHEET_NAME,
-            "error": str(exc),
-        }
-        print(f"Gagal menyimpan prediksi ke worksheet {PREDICTION_SHEET_NAME}: {exc}")
-
-    _forecast_cache = forecast
-    _forecast_cache_time = time.monotonic()
-    return {**forecast, "cached": False}

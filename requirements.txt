@@ -4,6 +4,3 @@ requests
 gspread
 google-auth
 apscheduler
-joblib>=1.4
-scikit-learn>=1.6
-xgboost>=2.1
