@@ -287,109 +287,177 @@ def parse_metar(text: str):
 
 # ---------------------------------------------
 # FUNGSI FETCH, PARSE, & PUSH KE GOOGLE SHEET
+# (Dilengkapi Auto-Backfill 24 Jam agar tidak ada gap data saat website ditutup)
 # ---------------------------------------------
+def parse_slot_datetime(s: str):
+    """Konversi string slot waktu menjadi objek datetime UTC untuk perbandingan kronologis"""
+    if not s:
+        return None
+    s = s.strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    # Handle single digit hour (contoh: 2026-10-03 0:00:00 atau 2:30:00 dari Google Sheets)
+    parts = s.split(' ')
+    if len(parts) == 2:
+        date_p, time_p = parts
+        t_parts = time_p.split(':')
+        if len(t_parts) >= 2:
+            try:
+                h = int(t_parts[0])
+                m = int(t_parts[1])
+                sec = int(t_parts[2]) if len(t_parts) > 2 else 0
+                y, mo, d = [int(x) for x in date_p.split('-')]
+                return datetime(y, mo, d, h, m, sec, tzinfo=timezone.utc)
+            except ValueError:
+                pass
+    return None
+
 def fetch_and_append_metar():
     global _latest_raw_metar, _latest_parsed_metar, _last_saved_metar_code, _last_saved_slot_time
-    url = "https://aviationweather.gov/api/data/metar?ids=WARR&format=raw"
+    # Ambil data 24 jam terakhir dari Aviation Weather API agar bisa auto-backfill jika sempat offline
+    url_24h = "https://aviationweather.gov/api/data/metar?ids=WARR&format=raw&hours=24"
     try:
-        resp = requests.get(url, timeout=10)
-        raw_text = resp.text.strip()
-        if not raw_text:
+        resp = requests.get(url_24h, timeout=10)
+        raw_lines = [l.strip() for l in resp.text.strip().split('\n') if l.strip()]
+        if not raw_lines:
+            # Fallback ke endpoint single latest jika hours=24 kosong
+            resp_single = requests.get("https://aviationweather.gov/api/data/metar?ids=WARR&format=raw", timeout=10)
+            raw_lines = [resp_single.text.strip()] if resp_single.text.strip() else []
+            
+        if not raw_lines:
             return {"status": "error", "message": "METAR kosong dari API"}
 
-        parsed = parse_metar(raw_text)
-        slot_utc, metar_code = get_metar_observation_time_utc(raw_text)
+        # raw_lines dari API terurut dari terbaru ke terlama, jadi balik urutan agar kronologis
+        chronological_lines = list(reversed(raw_lines))
 
-        _latest_raw_metar = raw_text
-        _latest_parsed_metar = parsed
+        # Parsing baris paling baru untuk data return & update state
+        newest_raw = raw_lines[0]
+        newest_parsed = parse_metar(newest_raw)
+        newest_slot_utc, newest_code = get_metar_observation_time_utc(newest_raw)
+        
+        _latest_raw_metar = newest_raw
+        _latest_parsed_metar = newest_parsed
 
-        record = {
-            "slot_30min": slot_utc,
-            "timestamp": slot_utc,
-            "raw_metar": raw_text,
-            "wind_speed": parsed["wind_speed"],
-            "dew_point": parsed["dew_point"],
-            "pressure": parsed["pressure"],
-            "temperature": parsed["temp"],
-            "temp": parsed["temp"],
-            "bad_weather": parsed["bad_weather"]
+        latest_record = {
+            "slot_30min": newest_slot_utc,
+            "timestamp": newest_slot_utc,
+            "raw_metar": newest_raw,
+            "wind_speed": newest_parsed["wind_speed"],
+            "dew_point": newest_parsed["dew_point"],
+            "pressure": newest_parsed["pressure"],
+            "temperature": newest_parsed["temp"],
+            "temp": newest_parsed["temp"],
+            "bad_weather": newest_parsed["bad_weather"]
         }
 
-        # 1. Cek Duplikat di Memori
-        if _last_saved_metar_code and metar_code == _last_saved_metar_code:
-            return {
-                "status": "skipped",
-                "message": f"Data METAR periode {metar_code} ({slot_utc} UTC) sudah tercatat.",
-                "data": record,
-                "sheet_synced": True
-            }
-
-        if _last_saved_slot_time and slot_utc == _last_saved_slot_time:
-            return {
-                "status": "skipped",
-                "message": f"Data slot {slot_utc} UTC sudah tercatat.",
-                "data": record,
-                "sheet_synced": True
-            }
-
-        # 2. Cek Duplikat di Local History
-        history = load_local_history()
-        for item in history:
-            if item.get("slot_30min") == slot_utc or item.get("raw_metar") == raw_text:
-                _last_saved_metar_code = metar_code
-                _last_saved_slot_time = slot_utc
-                return {
-                    "status": "skipped",
-                    "message": f"Data slot {slot_utc} UTC sudah tersimpan di riwayat lokal.",
-                    "data": record,
-                    "sheet_synced": True
-                }
-
-        # Format 6 kolom dataset Google Sheet (dalam UTC):
-        row_for_sheet = [
-            slot_utc,
-            parsed["wind_speed"],
-            parsed["dew_point"],
-            parsed["pressure"],
-            parsed["temp"],
-            parsed["bad_weather"]
-        ]
-
-        sheet_synced = False
+        # Dapatkan slot waktu terakhir yang sudah tercatat di Google Sheet
+        sheet = None
+        last_recorded_dt = None
+        existing_slots_set = set()
         sheet_error = None
+        sheet_synced = False
+        appended_count = 0
 
-        # 3. Cek Duplikat di Google Sheet
         try:
             sheet = get_sheet()
-            recent_rows, last_row = get_recent_rows_from_sheet(sheet, count=5)
-            
+            recent_rows, last_row = get_recent_rows_from_sheet(sheet, count=48)
             for r in recent_rows:
-                if r.get("slot_30min") == slot_utc:
-                    _last_saved_metar_code = metar_code
-                    _last_saved_slot_time = slot_utc
-                    save_local_record(record)
-                    return {
-                        "status": "skipped",
-                        "message": f"Data slot {slot_utc} UTC sudah ada di Google Sheet.",
-                        "data": record,
-                        "sheet_synced": True
-                    }
-
-            sheet.append_row(row_for_sheet)
-            sheet_synced = True
-            _last_saved_metar_code = metar_code
-            _last_saved_slot_time = slot_utc
+                s = r.get("slot_30min")
+                if s:
+                    existing_slots_set.add(s)
+                    dt = parse_slot_datetime(s)
+                    if dt and (last_recorded_dt is None or dt > last_recorded_dt):
+                        last_recorded_dt = dt
         except Exception as se:
             sheet_error = str(se)
 
-        save_local_record(record)
+        # Jika sheet tidak dapat diakses, cek local history
+        if not last_recorded_dt:
+            local_history = load_local_history()
+            for item in local_history:
+                s = item.get("slot_30min")
+                if s:
+                    existing_slots_set.add(s)
+                    dt = parse_slot_datetime(s)
+                    if dt and (last_recorded_dt is None or dt > last_recorded_dt):
+                        last_recorded_dt = dt
 
-        return {
-            "status": "success",
-            "data": record,
-            "sheet_synced": sheet_synced,
-            "sheet_error": sheet_error
-        }
+        # Identifikasi semua observasi baru yang belum ada di Google Sheet (auto-backfill multi-slot)
+        new_rows_for_sheet = []
+        new_records_for_local = []
+
+        for line in chronological_lines:
+            slot_utc, code = get_metar_observation_time_utc(line)
+            obs_dt = parse_slot_datetime(slot_utc)
+            
+            # Cek apakah observasi ini lebih baru dari data terakhir di sheet
+            is_new = False
+            if last_recorded_dt and obs_dt:
+                is_new = obs_dt > last_recorded_dt
+            elif slot_utc not in existing_slots_set:
+                is_new = True
+
+            if is_new and slot_utc not in existing_slots_set:
+                p = parse_metar(line)
+                row_data = [
+                    slot_utc,
+                    p["wind_speed"],
+                    p["dew_point"],
+                    p["pressure"],
+                    p["temp"],
+                    p["bad_weather"]
+                ]
+                new_rows_for_sheet.append(row_data)
+                new_records_for_local.append({
+                    "slot_30min": slot_utc,
+                    "timestamp": slot_utc,
+                    "raw_metar": line,
+                    "wind_speed": p["wind_speed"],
+                    "dew_point": p["dew_point"],
+                    "pressure": p["pressure"],
+                    "temperature": p["temp"],
+                    "temp": p["temp"],
+                    "bad_weather": p["bad_weather"]
+                })
+                existing_slots_set.add(slot_utc)
+
+        # Simpan ke Google Sheet jika ada data baru
+        if new_rows_for_sheet and sheet:
+            try:
+                sheet.append_rows(new_rows_for_sheet, value_input_option="USER_ENTERED")
+                sheet_synced = True
+                appended_count = len(new_rows_for_sheet)
+                _last_saved_metar_code = newest_code
+                _last_saved_slot_time = newest_slot_utc
+            except Exception as se:
+                sheet_error = str(se)
+
+        # Simpan ke local history
+        for rec in new_records_for_local:
+            save_local_record(rec)
+        if not new_records_for_local:
+            save_local_record(latest_record)
+
+        if appended_count > 0:
+            return {
+                "status": "success",
+                "message": f"Berhasil menambahkan {appended_count} observasi METAR baru ke Google Sheet.",
+                "appended_count": appended_count,
+                "data": latest_record,
+                "sheet_synced": sheet_synced,
+                "sheet_error": sheet_error
+            }
+        else:
+            return {
+                "status": "skipped",
+                "message": f"Data slot {newest_slot_utc} UTC sudah tercatat (tidak ada gap).",
+                "data": latest_record,
+                "sheet_synced": True,
+                "sheet_error": sheet_error
+            }
 
     except Exception as e:
         return {"status": "error", "error": str(e)}

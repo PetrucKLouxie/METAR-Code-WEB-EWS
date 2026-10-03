@@ -1,0 +1,17 @@
+name: METAR Auto-Collector 24/7 Cron
+
+on:
+  schedule:
+    # Berjalan otomatis setiap 15 menit secara terus menerus (24/7 di cloud)
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Tombol manual trigger di tab GitHub Actions
+
+jobs:
+  ping-collector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping METAR Collector on Vercel
+        run: |
+          echo "Pinging WARR METAR collector at $(date -u)..."
+          response=$(curl -s --max-time 30 "https://metar-code-web-ews.vercel.app/api/metar/latest")
+          echo "Response: $response"
