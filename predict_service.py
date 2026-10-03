@@ -6,10 +6,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_DIR = BASE_DIR / "saved_models"
-CONFIG_PATH = MODEL_DIR / "model_config.json"
-with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-    MODEL_CONFIG = json.load(config_file)
+PURE_MODEL_PATH = BASE_DIR / "saved_models_pure_math" / "model_trees_pure_math.json"
+with PURE_MODEL_PATH.open("r", encoding="utf-8") as model_file:
+    MODEL_CONFIG = json.load(model_file)
 
 FEATURE_NAMES = MODEL_CONFIG["feature_names"]
 HORIZONS = MODEL_CONFIG["horizons"]
@@ -121,68 +120,42 @@ def _load_model(horizon):
     if horizon in _MODEL_ERRORS:
         return None
 
-    model_path = MODEL_DIR / f"xgb_model_{horizon}.json"
-    if not model_path.is_file():
+    model = HORIZONS.get(horizon)
+    if not model or not model.get("trees"):
         return None
-
-    try:
-        with model_path.open("r", encoding="utf-8") as model_file:
-            serialized_model = json.load(model_file)
-
-        learner = serialized_model["learner"]
-        if learner["objective"]["name"] != "binary:logistic":
-            raise ValueError("Model harus menggunakan objective binary:logistic.")
-
-        raw_base_score = learner["learner_model_param"]["base_score"]
-        if isinstance(raw_base_score, str):
-            parsed_base_score = json.loads(raw_base_score)
-            raw_base_score = parsed_base_score[0] if isinstance(parsed_base_score, list) else parsed_base_score
-        base_score = float(raw_base_score)
-        if not 0.0 < base_score < 1.0:
-            raise ValueError("base_score model harus berada di antara 0 dan 1.")
-
-        trees = []
-        for tree in learner["gradient_booster"]["model"]["trees"]:
-            if any(tree.get("split_type", [])):
-                raise ValueError("Model dengan categorical split tidak didukung.")
-            trees.append({
-                "left": tree["left_children"],
-                "right": tree["right_children"],
-                "features": tree["split_indices"],
-                "conditions": tree["split_conditions"],
-                "default_left": tree["default_left"],
-            })
-
-        _MODEL_CACHE[horizon] = {
-            "base_margin": math.log(base_score / (1.0 - base_score)),
-            "trees": trees,
-        }
-    except Exception as error:
-        _MODEL_ERRORS[horizon] = error
-        print(f"Model +{horizon} gagal dimuat: {error!r}", flush=True)
-        return None
+    _MODEL_CACHE[horizon] = model
     return _MODEL_CACHE[horizon]
 
 
-def _predict_booster_probability(model, features):
-    float32_features = [struct.unpack("<f", struct.pack("<f", value))[0] for value in features]
-    margin = model["base_margin"]
+def _evaluate_tree_node(tree, feature_values):
+    node = tree
+    while "leaf" not in node:
+        value = feature_values[node["split"]]
+        if math.isnan(value):
+            child_id = node["missing"]
+        else:
+            threshold = struct.unpack("<f", struct.pack("<f", node["split_condition"]))[0]
+            child_id = node["yes"] if value < threshold else node["no"]
+        node = next(child for child in node["children"] if child["nodeid"] == child_id)
+    return float(node["leaf"])
+
+
+def _predict_horizon_probability(model, features):
+    float32_values = [struct.unpack("<f", struct.pack("<f", value))[0] for value in features]
+    feature_values = dict(zip(FEATURE_NAMES, float32_values))
+    margin = float(model["base_score"])
     for tree in model["trees"]:
-        node = 0
-        while tree["left"][node] != -1:
-            value = float32_features[tree["features"][node]]
-            if math.isnan(value):
-                node = tree["left"][node] if tree["default_left"][node] else tree["right"][node]
-            elif value < tree["conditions"][node]:
-                node = tree["left"][node]
-            else:
-                node = tree["right"][node]
-        margin += tree["conditions"][node]
+        margin += _evaluate_tree_node(tree, feature_values)
 
     if margin >= 0.0:
-        return 1.0 / (1.0 + math.exp(-margin))
-    exp_margin = math.exp(margin)
-    return exp_margin / (1.0 + exp_margin)
+        raw_probability = 1.0 / (1.0 + math.exp(-margin))
+    else:
+        exp_margin = math.exp(margin)
+        raw_probability = exp_margin / (1.0 + exp_margin)
+
+    calibration = model["platt_scaling"]
+    calibrated_score = calibration["A"] * raw_probability + calibration["B"]
+    return 1.0 / (1.0 + math.exp(max(-700.0, min(700.0, calibrated_score))))
 
 
 def _feature_vector(observations):
@@ -198,9 +171,10 @@ def _feature_vector(observations):
     es_dew = _saturation_vapor_pressure(dew_point)
     relative_humidity = min(100.0, max(0.0, 100.0 * es_dew / es_temp))
     vpd = max(0.0, es_temp - es_dew)
-    air_density = pressure * 100.0 / (287.05 * (temp + 273.15))
+    air_density = pressure * 100.0 / (287.058 * (temp + 273.15))
     wind_mps = wind_knots * 0.514444
     timestamp = latest["timestamp"] or datetime.now(timezone.utc)
+    hour = timestamp.hour + timestamp.minute / 60.0
     three_hour_lag = _observation_at_lag(observations, 180)
     one_hour_lag = _observation_at_lag(observations, 60)
 
@@ -213,12 +187,12 @@ def _feature_vector(observations):
         "relative_humidity": relative_humidity,
         "vpd": vpd,
         "air_density": air_density,
-        "wind_energy_proxy": 0.5 * air_density * wind_mps ** 3,
+        "wind_energy_proxy": 0.5 * air_density * wind_mps ** 2,
         "pressure_tendency_3h": pressure - three_hour_lag["pressure"],
         "temp_tendency_1h": temp - one_hour_lag["temperature"],
         "wind_acceleration_1h": wind_knots - one_hour_lag["wind_speed"],
-        "hour_sin": math.sin(2.0 * math.pi * timestamp.hour / 24.0),
-        "hour_cos": math.cos(2.0 * math.pi * timestamp.hour / 24.0),
+        "hour_sin": math.sin(2.0 * math.pi * hour / 24.0),
+        "hour_cos": math.cos(2.0 * math.pi * hour / 24.0),
     }
     return [features[name] for name in FEATURE_NAMES], features
 
@@ -265,11 +239,7 @@ def predict_from_observations(records):
             continue
 
         try:
-            probability = _predict_booster_probability(model, vector)
-            platt_params = config.get("platt_params")
-            if platt_params:
-                calibration_score = platt_params["A"] * probability + platt_params["B"]
-                probability = 1.0 / (1.0 + math.exp(min(700.0, calibration_score)))
+            probability = _predict_horizon_probability(model, vector)
         except Exception as error:
             print(f"Inferensi model +{horizon} gagal: {error!r}", flush=True)
             predictions.append({
@@ -278,9 +248,9 @@ def predict_from_observations(records):
                 "message": f"Inferensi model +{horizon} gagal.",
             })
             continue
-        thresholds = config["thresholds"]
+        thresholds = model["thresholds"]
         status = _status(probability, thresholds)
-        target_utc = current_time + timedelta(minutes=config["lead_time_minutes"])
+        target_utc = current_time + timedelta(minutes=model["lead_time_minutes"])
         target_wib = target_utc + timedelta(hours=7)
         predictions.append({
             "horizon": horizon,
