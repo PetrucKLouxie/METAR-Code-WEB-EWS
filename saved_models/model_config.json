@@ -54,7 +54,7 @@
     "1h": {
       "lead_steps": 2,
       "lead_time_minutes": 60,
-      "model_file": "Model XGBoost/xgb_model_1h.joblib",
+      "model_file": "saved_models/xgb_model_1h.json",
       "thresholds": {
         "th_waspada": 0.105,
         "th_bahaya": 0.29
@@ -67,12 +67,16 @@
         "hss_skill_score": 0.2179,
         "prauc": 0.216,
         "brier_score": 0.0329
+      },
+      "platt_params": {
+        "A": -5.351862404570957,
+        "B": 5.85544234431873
       }
     },
     "3h": {
       "lead_steps": 6,
       "lead_time_minutes": 180,
-      "model_file": "Model XGBoost/xgb_model_3h.joblib",
+      "model_file": "saved_models/xgb_model_3h.json",
       "thresholds": {
         "th_waspada": 0.1,
         "th_bahaya": 0.175
@@ -85,13 +89,16 @@
         "hss_skill_score": 0.197,
         "prauc": 0.1532,
         "brier_score": 0.0338
+      },
+      "platt_params": {
+        "A": -5.351862404570957,
+        "B": 5.85544234431873
       }
     },
     "9h": {
       "lead_steps": 18,
       "lead_time_minutes": 540,
-      "model_file": null,
-      "model_status": "missing_artifact",
+      "model_file": "saved_models/xgb_model_9h.json",
       "thresholds": {
         "th_waspada": 0.095,
         "th_bahaya": 0.155
@@ -104,12 +111,16 @@
         "hss_skill_score": 0.1815,
         "prauc": 0.1495,
         "brier_score": 0.0339
+      },
+      "platt_params": {
+        "A": -5.351862404570957,
+        "B": 5.85544234431873
       }
     },
     "18h": {
       "lead_steps": 36,
       "lead_time_minutes": 1080,
-      "model_file": "Model XGBoost/xgb_model_18h.joblib",
+      "model_file": "saved_models/xgb_model_18h.json",
       "thresholds": {
         "th_waspada": 0.09,
         "th_bahaya": 0.15
@@ -122,12 +133,16 @@
         "hss_skill_score": 0.1606,
         "prauc": 0.1431,
         "brier_score": 0.0339
+      },
+      "platt_params": {
+        "A": -5.351862404570957,
+        "B": 5.85544234431873
       }
     },
     "24h": {
       "lead_steps": 48,
       "lead_time_minutes": 1440,
-      "model_file": "Model XGBoost/xgb_model_24h.joblib",
+      "model_file": "saved_models/xgb_model_24h.json",
       "thresholds": {
         "th_waspada": 0.09,
         "th_bahaya": 0.165
@@ -140,6 +155,10 @@
         "hss_skill_score": 0.1721,
         "prauc": 0.1591,
         "brier_score": 0.0335
+      },
+      "platt_params": {
+        "A": -5.351862404570957,
+        "B": 5.85544234431873
       }
     }
   }
