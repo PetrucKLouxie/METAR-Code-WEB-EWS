@@ -15,3 +15,4 @@ saved_models/*.png
 saved_models/*.joblib
 saved_models/*.json
 saved_models/.ipynb_checkpoints/**
+saved_models_lstm/*.keras

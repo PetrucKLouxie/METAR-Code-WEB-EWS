@@ -94,6 +94,13 @@
           </svg>
           <span class="truncate">Klasifikasi XGBoost</span>
         </button>
+        <!-- 5. Klasifikasi LSTM -->
+        <button onclick="switchTab('lstm')" id="nav-btn-lstm" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h4l2 5 4-9 2 6h4M4 19h16"/>
+          </svg>
+          <span class="truncate">Klasifikasi LSTM</span>
+        </button>
       </nav>
     </div>
 
@@ -145,7 +152,6 @@
           <p id="topbarSubtitle" class="text-xs text-slate-400 hidden sm:block">Pemantauan & Peringatan Dini Cuaca Ekstrem Bandara Juanda</p>
         </div>
       </div>
-
       <!-- Aksi Header: Jam UTC, Countdown Auto-Refresh, Tombol Sync -->
       <div class="flex items-center gap-2.5 sm:gap-3">
         <!-- Live UTC Clock -->
@@ -899,6 +905,83 @@
         </div>
       </section>
 
+      <!-- TAB 5: KLASIFIKASI LSTM -->
+      <section id="tab-lstm" class="tab-content hidden max-w-7xl mx-auto space-y-6 animate-fade-in">
+        <section class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-5" aria-labelledby="lstm-live-title">
+          <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+            <div>
+              <div class="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-300">Inferensi LSTM · Lookback 12 timestep</div>
+              <h1 id="lstm-live-title" class="text-xl sm:text-2xl font-bold text-white mt-1">Klasifikasi Risiko Cuaca WARR</h1>
+              <p class="text-xs text-slate-400 mt-1">12 observasi berurutan pada interval sekitar 30 menit; inferensi memakai bobot hasil training Colab.</p>
+            </div>
+            <div class="inline-flex rounded-lg border border-slate-700 bg-slate-950 p-1" role="group" aria-label="Mode input LSTM">
+              <button id="lstmModeSheets" type="button" onclick="setLstmInputMode('sheets')" class="px-3 py-2 rounded-md text-xs font-semibold bg-cyan-700 text-white">Google Sheets</button>
+              <button id="lstmModeManual" type="button" onclick="setLstmInputMode('manual')" class="px-3 py-2 rounded-md text-xs font-semibold text-slate-400 hover:text-white">Input manual</button>
+            </div>
+          </div>
+          <div id="lstmSheetsControls" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
+            <p class="text-xs text-slate-400">Mengambil hingga 18 observasi terbaru; model memakai 12 observasi terakhir.</p>
+            <button id="btnLstmSheets" onclick="loadLstmPredictionFromSheets()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 text-white text-sm font-semibold transition">Prediksi dari Sheets</button>
+          </div>
+          <form id="lstmManualForm" onsubmit="submitManualLstmPrediction(event)" class="hidden space-y-2 border-t border-slate-800 pt-4">
+            <label for="lstmManualMetars" class="block text-xs font-semibold text-slate-300">12 METAR WARR berurutan · interval 30 menit</label>
+            <textarea id="lstmManualMetars" rows="7" class="w-full resize-y rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500" spellcheck="false">METAR WARR 030700Z 27005KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 030730Z 27005KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 030800Z 27006KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 030830Z 27006KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 030900Z 27006KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 030930Z 27007KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 031000Z 27007KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 031030Z 27007KT 9999 FEW020 27/23 Q1009 NOSIG
+METAR WARR 031100Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG
+METAR WARR 031130Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG
+METAR WARR 031200Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG
+METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <span class="text-[11px] text-slate-500">Wajib memuat waktu Z, angin KT, suhu/titik embun, dan QNH.</span>
+              <button id="btnLstmManual" type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold">Jalankan prediksi</button>
+            </div>
+          </form>
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-4">
+            <p id="lstmPredictionMessage" class="text-xs text-slate-400" role="status">Menunggu input observasi.</p>
+            <p id="lstmObservedAt" class="font-mono text-[11px] text-slate-500"></p>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2" aria-live="polite">
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">Suhu</div><div id="lstmTemp" class="font-mono text-sm font-bold text-amber-300 mt-1">-- °C</div></div>
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">Dew point</div><div id="lstmDew" class="font-mono text-sm font-bold text-cyan-300 mt-1">-- °C</div></div>
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">DPD</div><div id="lstmDpd" class="font-mono text-sm font-bold text-sky-300 mt-1">-- °C</div></div>
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">RH</div><div id="lstmRh" class="font-mono text-sm font-bold text-emerald-300 mt-1">-- %</div></div>
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">QNH</div><div id="lstmPressure" class="font-mono text-sm font-bold text-teal-300 mt-1">-- hPa</div></div>
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">ΔP 3 jam</div><div id="lstmPressureTrend" class="font-mono text-sm font-bold text-blue-300 mt-1">-- hPa</div></div>
+            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800"><div class="text-[10px] text-slate-500">Angin</div><div id="lstmWind" class="font-mono text-sm font-bold text-orange-300 mt-1">-- kt</div></div>
+          </div>
+          <div id="lstmHorizonCards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3" aria-live="polite"></div>
+          <p class="text-[11px] text-amber-200/80">Dukungan keputusan saja. Ikuti prakiraan resmi BMKG dan prosedur otoritas penerbangan.</p>
+        </section>
+
+        <section class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4" aria-labelledby="lstm-evaluation-title">
+          <div>
+            <div class="text-xs font-mono font-semibold uppercase tracking-wider text-cyan-300">Evaluasi · test 2026</div>
+            <h2 id="lstm-evaluation-title" class="text-lg sm:text-xl font-bold text-white mt-1">Konvergensi & Verifikasi Multi-Horizon</h2>
+          </div>
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <figure class="min-w-0 rounded-lg border border-slate-800 bg-slate-950 p-3"><figcaption class="text-xs font-semibold text-slate-300 mb-2">Loss & PR-AUC training/validasi</figcaption><img src="/images/lstm/lstm_training_convergence.png" alt="Kurva loss training dan validasi serta PR-AUC LSTM" loading="lazy" class="w-full h-auto rounded bg-white"></figure>
+            <figure class="min-w-0 rounded-lg border border-slate-800 bg-slate-950 p-3"><figcaption class="text-xs font-semibold text-slate-300 mb-2">CSI, HSS estimasi, PR-AUC</figcaption><div id="lstmWmoChart" class="w-full overflow-x-auto" aria-label="Grafik metrik WMO"></div></figure>
+            <figure class="min-w-0 rounded-lg border border-slate-800 bg-slate-950 p-3"><figcaption class="text-xs font-semibold text-slate-300 mb-2">POD vs FAR · FAR lebih kecil lebih baik</figcaption><div id="lstmPodFarChart" class="w-full overflow-x-auto" aria-label="Grafik POD dan FAR"></div></figure>
+            <figure class="min-w-0 rounded-lg border border-slate-800 bg-slate-950 p-3"><figcaption class="text-xs font-semibold text-slate-300 mb-2">Threshold dual-level</figcaption><div id="lstmThresholdChart" class="w-full overflow-x-auto" aria-label="Grafik threshold"></div></figure>
+          </div>
+          <p id="lstmMetricsNote" class="text-[10px] leading-relaxed text-slate-500"></p>
+        </section>
+
+        <section class="space-y-3" aria-labelledby="lstm-theory-title">
+          <div class="border-b border-slate-800 pb-3"><div class="text-xs font-mono font-semibold uppercase tracking-wider text-cyan-400">Dokumentasi ilmiah & operasional</div><h2 id="lstm-theory-title" class="text-xl font-bold text-white mt-1">LSTM untuk Klasifikasi Cuaca Multi-Horizon</h2><p class="text-xs text-slate-400 mt-1">Bobot dan scaler mengikuti artefak Colab; penjelasan gate bukan atribusi kausal meteorologis.</p></div>
+          <details class="bg-slate-900 rounded-xl border border-slate-800 p-4 group" open><summary class="cursor-pointer font-semibold text-white">Formulasi matematis sel LSTM</summary><div class="mt-3 space-y-2 text-sm text-slate-300 leading-relaxed"><div class="math-display">\[\mathbf{f}_t=\sigma(W_f\mathbf{x}_t+U_f\mathbf{h}_{t-1}+\mathbf{b}_f),\quad \mathbf{i}_t=\sigma(W_i\mathbf{x}_t+U_i\mathbf{h}_{t-1}+\mathbf{b}_i)\]</div><div class="math-display">\[\tilde{\mathbf{C}}_t=\tanh(W_c\mathbf{x}_t+U_c\mathbf{h}_{t-1}+\mathbf{b}_c),\quad \mathbf{C}_t=\mathbf{f}_t\odot\mathbf{C}_{t-1}+\mathbf{i}_t\odot\tilde{\mathbf{C}}_t\]</div><div class="math-display">\[\mathbf{o}_t=\sigma(W_o\mathbf{x}_t+U_o\mathbf{h}_{t-1}+\mathbf{b}_o),\quad \mathbf{h}_t=\mathbf{o}_t\odot\tanh(\mathbf{C}_t)\]</div><p>Bobot yang tersedia memakai lookback 12 timestep dan dua layer LSTM 64/32 unit. Cell state dapat membawa pola berurutan seperti tendensi tekanan/kelembapan, tetapi tidak membuktikan identifikasi proses fisik tertentu.</p></div></details>
+          <details class="bg-slate-900 rounded-xl border border-slate-800 p-4 group"><summary class="cursor-pointer font-semibold text-white">Fitur, scaler, dan imbalance</summary><div class="mt-3 space-y-2 text-sm text-slate-300 leading-relaxed"><p>Input memakai 14 fitur dengan center/scale dari artefak. Metadata Keras mengonfirmasi loss <code>weighted_bce_loss</code>.</p><div class="math-display">\[\mathcal{L}_{WBCE}=-\frac{1}{N}\sum_i\left[w_{pos}y_i\log(p_i)+(1-y_i)\log(1-p_i)\right]\]</div><p>Rentang bobot positif 12–24 belum terverifikasi pada artefak yang tersedia; nilai pastinya perlu diambil dari notebook training.</p></div></details>
+          <details class="bg-slate-900 rounded-xl border border-slate-800 p-4 group"><summary class="cursor-pointer font-semibold text-white">Direct multi-horizon & literatur</summary><div class="mt-3 space-y-2 text-sm text-slate-300 leading-relaxed"><p>Head output memberi lima horizon langsung dan menghindari rantai prediksi autoregresif. Metrik ditampilkan dari konfigurasi test 2026; HSS adalah estimasi dari POD/FAR yang dibulatkan.</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-400"><li>Hochreiter &amp; Schmidhuber (1997), “Long Short-Term Memory”, <em>Neural Computation</em>, 9(8), 1735–1780.</li><li>Greff et al. (2017), “LSTM: A Search Space Odyssey”, <em>IEEE TNNLS</em>, 28(10), 2222–2232.</li><li>Ben Taieb et al. (2012), strategi peramalan multi-step, <em>Expert Systems with Applications</em>, 39(8), 7067–7083.</li></ul></div></details>
+          <details class="bg-slate-900 rounded-xl border border-slate-800 p-4 group"><summary class="cursor-pointer font-semibold text-white">WMO-No. 485, ICAO Annex 3, dan batas penggunaan</summary><div class="mt-3 space-y-2 text-sm text-slate-300 leading-relaxed"><p>WMO-No. 485 dan ICAO Annex 3 adalah konteks standar observasi/layanan meteorologi penerbangan, bukan sertifikasi model. Waktu target ditampilkan dalam UTC/Zulu dan WIB.</p><p>Hasil model adalah dukungan keputusan; ikuti peringatan resmi BMKG dan prosedur otoritas penerbangan.</p></div></details>
+        </section>
+      </section>
+
     </div>
   </main>
 
@@ -910,6 +993,8 @@
     let countdownSec = 60;
     let countdownTimer = null;
     let xgbPredictionLoaded = false;
+    let lstmPredictionLoaded = false;
+    let lstmMetricsLoaded = false;
 
     // --- Tab Switching (SPA Vanilla JS) ---
     function switchTab(tabId) {
@@ -948,11 +1033,21 @@
         titleEl.innerText = "Klasifikasi XGBoost";
         subEl.innerText = "Peringatan Multi-Horizon, Fitur Atmosfer & Verifikasi WMO";
         if (!xgbPredictionLoaded) loadPredictionFromSheets();
+      } else if (tabId === 'lstm') {
+        titleEl.innerText = "Klasifikasi LSTM";
+        subEl.innerText = "Lookback 12 timestep, threshold dual-level & evaluasi WMO";
+        if (!lstmMetricsLoaded) loadLstmMetrics();
+        if (!lstmPredictionLoaded) loadLstmPredictionFromSheets();
       }
 
       if (tabId === 'xgboost' && window.MathJax && window.MathJax.typesetPromise) {
         window.MathJax.typesetPromise([activeSection]).catch((error) => {
           console.error("Gagal merender persamaan dokumentasi XGBoost:", error);
+        });
+      }
+      if (tabId === 'lstm' && window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([activeSection]).catch((error) => {
+          console.error("Gagal merender persamaan dokumentasi LSTM:", error);
         });
       }
 
@@ -1050,6 +1145,126 @@
           </div>
         </article>`;
       }).join('');
+    }
+
+    function setLstmInputMode(mode) {
+      const manual = mode === 'manual';
+      document.getElementById('lstmSheetsControls').classList.toggle('hidden', manual);
+      document.getElementById('lstmManualForm').classList.toggle('hidden', !manual);
+      document.getElementById('lstmModeSheets').className = manual
+        ? "px-3 py-2 rounded-md text-xs font-semibold text-slate-400 hover:text-white"
+        : "px-3 py-2 rounded-md text-xs font-semibold bg-cyan-700 text-white";
+      document.getElementById('lstmModeManual').className = manual
+        ? "px-3 py-2 rounded-md text-xs font-semibold bg-cyan-700 text-white"
+        : "px-3 py-2 rounded-md text-xs font-semibold text-slate-400 hover:text-white";
+    }
+
+    function setLstmPredictionLoading(isLoading, message) {
+      document.getElementById('btnLstmSheets').disabled = isLoading;
+      document.getElementById('btnLstmManual').disabled = isLoading;
+      document.getElementById('lstmPredictionMessage').innerText = message;
+    }
+
+    async function loadLstmPredictionFromSheets() {
+      await requestLstmPrediction({ source: "gsheet" });
+    }
+
+    async function submitManualLstmPrediction(event) {
+      event.preventDefault();
+      const rawMetars = document.getElementById('lstmManualMetars').value
+        .split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      if (rawMetars.length < 12) {
+        setLstmPredictionLoading(false, "Masukkan minimal 12 baris METAR berurutan.");
+        return;
+      }
+      await requestLstmPrediction({ source: "manual", raw_metars: rawMetars });
+    }
+
+    async function requestLstmPrediction(payload) {
+      setLstmPredictionLoading(true, "Menghitung prediksi LSTM multi-horizon...");
+      try {
+        const response = await fetch(`${API_BASE}/api/lstm/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Permintaan prediksi LSTM gagal.");
+        renderLstmPrediction(result);
+        lstmPredictionLoaded = true;
+        const sourceLabel = result.source === "google_sheets" ? "Google Sheets" :
+          result.source === "local_storage" ? "cache lokal" : "METAR manual";
+        setLstmPredictionLoading(false, `Prediksi diperbarui dari ${sourceLabel} (${result.observations_used} observasi).`);
+      } catch (error) {
+        setLstmPredictionLoading(false, error.message || "Inferensi LSTM tidak tersedia.");
+      }
+    }
+
+    function renderLstmPrediction(result) {
+      const current = result.current;
+      document.getElementById('lstmTemp').innerText = `${formatXgbValue(current.temperature)} °C`;
+      document.getElementById('lstmDew').innerText = `${formatXgbValue(current.dew_point)} °C`;
+      document.getElementById('lstmDpd').innerText = `${formatXgbValue(current.dpd)} °C`;
+      document.getElementById('lstmRh').innerText = `${formatXgbValue(current.relative_humidity)} %`;
+      document.getElementById('lstmPressure').innerText = `${formatXgbValue(current.pressure)} hPa`;
+      const trend = Number(current.pressure_tendency_3h);
+      document.getElementById('lstmPressureTrend').innerText = `${Number.isFinite(trend) && trend > 0 ? "+" : ""}${formatXgbValue(trend)} hPa`;
+      document.getElementById('lstmWind').innerText = `${formatXgbValue(current.wind_speed)} kt`;
+      document.getElementById('lstmObservedAt').innerText = `${result.observed_at_wib} · ${result.observed_at_utc}`;
+
+      const cardClasses = {
+        green: "border-emerald-500/40 bg-emerald-950/20",
+        amber: "border-amber-500/50 bg-amber-950/20",
+        red: "border-red-500/60 bg-red-950/25"
+      };
+      const badgeClasses = {
+        green: "bg-emerald-900/70 text-emerald-300 border-emerald-500/40",
+        amber: "bg-amber-900/70 text-amber-200 border-amber-500/50",
+        red: "bg-red-900/70 text-red-200 border-red-500/50"
+      };
+      document.getElementById('lstmHorizonCards').innerHTML = result.predictions.map(item => {
+        const tone = item.status.color;
+        return `<article class="min-w-0 p-4 rounded-lg border ${cardClasses[tone] || cardClasses.green}">
+          <div class="flex items-start justify-between gap-2"><h3 class="font-mono font-bold text-white">+${item.horizon}</h3><span class="px-2 py-1 rounded border text-[10px] leading-none font-bold ${badgeClasses[tone] || badgeClasses.green}">${item.status.label}</span></div>
+          <div class="mt-3 text-2xl font-mono font-extrabold text-white">${formatXgbValue(item.probability * 100, 2)}<span class="text-sm text-slate-400">%</span></div>
+          <div class="mt-2 space-y-1 text-[10px] text-slate-400 font-mono"><div>Waspada ≥ ${formatXgbValue(item.thresholds.th_waspada * 100)}%</div><div>Bahaya ≥ ${formatXgbValue(item.thresholds.th_bahaya * 100)}%</div></div>
+          <div class="mt-3 pt-3 border-t border-slate-700/80 text-[10px] leading-relaxed"><div class="text-cyan-200">${item.target_wib}</div><div class="text-slate-500">${item.target_utc}</div><p class="text-slate-300 mt-2">${item.recommendation}</p></div>
+        </article>`;
+      }).join('');
+    }
+
+    function metricRows(horizons, valueSelector, scale, color, formatter, markerValue = null) {
+      return Object.entries(horizons).map(([horizon, data]) => {
+        const value = valueSelector(data);
+        const width = Math.max(0, Math.min(100, value / scale * 100));
+        const baselineMarker = markerValue === null ? "" : `<span class="absolute inset-y-0 border-l border-dashed border-white/80" style="left:${markerValue / scale * 100}%" aria-hidden="true"></span>`;
+        return `<div class="grid grid-cols-[2.5rem_minmax(0,1fr)_3.5rem] items-center gap-2 text-[10px]"><span class="font-mono text-slate-400">+${horizon}</span><div class="relative h-2 rounded bg-slate-800 overflow-visible"><div class="h-full rounded ${color}" style="width:${width}%"></div>${baselineMarker}</div><span class="text-right font-mono text-slate-300">${formatter(value)}</span></div>`;
+      }).join('');
+    }
+
+    function renderLstmMetrics(metadata) {
+      const horizons = metadata.horizons;
+      document.getElementById('lstmWmoChart').innerHTML = `
+        <div class="space-y-2">${metricRows(horizons, item => item.metrics.csi, 0.3, "bg-cyan-400", value => value.toFixed(3))}</div>
+        <div class="border-t border-slate-800 mt-3 pt-3 space-y-2">${metricRows(horizons, item => item.metrics.hss_estimate, 0.3, "bg-emerald-400", value => `${value.toFixed(3)}*`)}</div>
+        <div class="border-t border-slate-800 mt-3 pt-3 space-y-2">${metricRows(horizons, item => item.metrics.pr_auc, 0.3, "bg-orange-400", value => value.toFixed(3), 0.038)}</div>`;
+      document.getElementById('lstmPodFarChart').innerHTML = `
+        <div class="space-y-3">${Object.entries(horizons).map(([horizon, item]) => `<div class="space-y-1"><div class="flex justify-between text-[10px] font-mono text-slate-400"><span>+${horizon} · POD</span><span>${(item.metrics.pod * 100).toFixed(1)}%</span></div><div class="h-2 rounded bg-slate-800 overflow-hidden"><div class="h-full bg-emerald-400 rounded" style="width:${item.metrics.pod * 100}%"></div></div><div class="flex justify-between text-[10px] font-mono text-slate-400"><span>FAR</span><span>${(item.metrics.far * 100).toFixed(1)}%</span></div><div class="h-2 rounded bg-slate-800 overflow-hidden"><div class="h-full bg-red-400 rounded" style="width:${item.metrics.far * 100}%"></div></div></div>`).join('')}</div>`;
+      document.getElementById('lstmThresholdChart').innerHTML = `
+        <div class="space-y-3">${Object.entries(horizons).map(([horizon, item]) => `<div class="space-y-1"><div class="flex justify-between text-[10px] font-mono text-slate-400"><span>+${horizon} · WASPADA</span><span>${(item.thresholds.th_waspada * 100).toFixed(1)}%</span></div><div class="h-2 rounded bg-slate-800 overflow-hidden"><div class="h-full bg-amber-400 rounded" style="width:${item.thresholds.th_waspada * 100}%"></div></div><div class="flex justify-between text-[10px] font-mono text-slate-400"><span>BAHAYA</span><span>${(item.thresholds.th_bahaya * 100).toFixed(1)}%</span></div><div class="h-2 rounded bg-slate-800 overflow-hidden"><div class="h-full bg-red-400 rounded" style="width:${item.thresholds.th_bahaya * 100}%"></div></div></div>`).join('')}</div>`;
+      document.getElementById('lstmMetricsNote').innerText = `${metadata.hss_note} Baseline no-skill PR-AUC dari prevalensi test sekitar 3,8%; nilai dapat sedikit berubah antar-horizon.`;
+      lstmMetricsLoaded = true;
+    }
+
+    async function loadLstmMetrics() {
+      try {
+        const response = await fetch(`${API_BASE}/api/lstm/metrics`);
+        const metadata = await response.json();
+        if (!response.ok) throw new Error(metadata.detail || "Metrik LSTM tidak tersedia.");
+        renderLstmMetrics(metadata);
+      } catch (error) {
+        document.getElementById('lstmMetricsNote').innerText = error.message || "Metrik LSTM tidak tersedia.";
+      }
     }
 
     // --- Mobile Drawer Toggle ---

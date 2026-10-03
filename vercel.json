@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/**/*.py": {
-      "includeFiles": "{index.html,saved_models_pure_math/model_trees_pure_math.json,public/assets/**}",
+      "includeFiles": "{index.html,saved_models_pure_math/model_trees_pure_math.json,saved_models_lstm/lstm_config.json,saved_models_lstm/scaler_params.json,saved_models_lstm/lstm_weights_pure.json,public/assets/**,public/images/lstm/**}",
       "memory": 1024,
       "maxDuration": 30
     }

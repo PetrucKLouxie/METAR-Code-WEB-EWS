@@ -1,0 +1,81 @@
+{
+  "lookback_timesteps": 12,
+  "feature_names": [
+    "temperature",
+    "dew_point",
+    "dpd",
+    "pressure",
+    "wind_speed",
+    "relative_humidity",
+    "vpd",
+    "air_density",
+    "wind_energy_proxy",
+    "pressure_tendency_3h",
+    "temp_tendency_1h",
+    "wind_acceleration_1h",
+    "hour_sin",
+    "hour_cos"
+  ],
+  "horizons": {
+    "1h": {
+      "lead_time_minutes": 60,
+      "th_waspada": 0.6,
+      "th_bahaya": 0.7,
+      "metrics_2026": {
+        "pod": 0.6568,
+        "far": 0.793,
+        "csi": 0.1868,
+        "pr_auc": 0.2318,
+        "brier": 0.0977
+      }
+    },
+    "3h": {
+      "lead_time_minutes": 180,
+      "th_waspada": 0.54,
+      "th_bahaya": 0.7,
+      "metrics_2026": {
+        "pod": 0.7396,
+        "far": 0.8298,
+        "csi": 0.1606,
+        "pr_auc": 0.2345,
+        "brier": 0.1017
+      }
+    },
+    "9h": {
+      "lead_time_minutes": 540,
+      "th_waspada": 0.575,
+      "th_bahaya": 0.68,
+      "metrics_2026": {
+        "pod": 0.6218,
+        "far": 0.8396,
+        "csi": 0.1462,
+        "pr_auc": 0.1707,
+        "brier": 0.1073
+      }
+    },
+    "18h": {
+      "lead_time_minutes": 1080,
+      "th_waspada": 0.495,
+      "th_bahaya": 0.7,
+      "metrics_2026": {
+        "pod": 0.7103,
+        "far": 0.8531,
+        "csi": 0.1386,
+        "pr_auc": 0.2078,
+        "brier": 0.0979
+      }
+    },
+    "24h": {
+      "lead_time_minutes": 1440,
+      "th_waspada": 0.48,
+      "th_bahaya": 0.695,
+      "metrics_2026": {
+        "pod": 0.7646,
+        "far": 0.8542,
+        "csi": 0.1396,
+        "pr_auc": 0.2106,
+        "brier": 0.1007
+      }
+    }
+  }
+}
