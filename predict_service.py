@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import joblib
+import xgboost
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -123,11 +124,23 @@ def _load_model(horizon):
     if horizon in _MODEL_ERRORS:
         return None
 
-    model_path = MODEL_DIR / f"xgb_model_{horizon}.joblib"
-    if not model_path.is_file():
+    candidate_paths = []
+    for suffix in ("joblib", "json"):
+        path = MODEL_DIR / f"xgb_model_{horizon}.{suffix}"
+        if path.is_file():
+            candidate_paths.append(path)
+
+    if not candidate_paths:
         return None
+
+    model_path = candidate_paths[0]
     try:
-        _MODEL_CACHE[horizon] = joblib.load(model_path)
+        if model_path.suffix.lower() == ".json":
+            model = xgboost.Booster()
+            model.load_model(str(model_path))
+            _MODEL_CACHE[horizon] = model
+        else:
+            _MODEL_CACHE[horizon] = joblib.load(model_path)
     except Exception as error:
         _MODEL_ERRORS[horizon] = error
         print(f"Model +{horizon} gagal dimuat: {error!r}", flush=True)
@@ -215,7 +228,15 @@ def predict_from_observations(records):
             continue
 
         try:
-            probability = float(model.predict_proba([vector])[0][1])
+            if isinstance(model, xgboost.Booster):
+                matrix = xgboost.DMatrix([vector], feature_names=FEATURE_NAMES)
+                probability = float(model.predict(matrix)[0])
+                platt_params = config.get("platt_params")
+                if platt_params:
+                    calibration_score = platt_params["A"] * probability + platt_params["B"]
+                    probability = 1.0 / (1.0 + math.exp(min(700.0, calibration_score)))
+            else:
+                probability = float(model.predict_proba([vector])[0][1])
         except Exception as error:
             print(f"Inferensi model +{horizon} gagal: {error!r}", flush=True)
             predictions.append({
