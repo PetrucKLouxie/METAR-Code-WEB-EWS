@@ -1798,12 +1798,18 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
               </p>
             </div>
             <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
-              <button onclick="loadWeeklyForecast(true)" id="btnRefreshWeekly" class="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-2 shadow-lg shadow-cyan-600/20 transition-all cursor-pointer">
-                <svg id="iconRefreshWeekly" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                <span>Perbarui Data NWP</span>
-              </button>
+              <div class="flex items-center gap-2">
+                <button onclick="saveSnapshotToGSheet()" id="btnSaveSnapshot" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer">
+                  <span id="iconSaveSnapshot">💾</span>
+                  <span>Simpan ke GSheet</span>
+                </button>
+                <button onclick="loadWeeklyForecast(true)" id="btnRefreshWeekly" class="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-2 shadow-lg shadow-cyan-600/20 transition-all cursor-pointer">
+                  <svg id="iconRefreshWeekly" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                  <span>Perbarui NWP</span>
+                </button>
+              </div>
               <span id="weeklyLastUpdated" class="text-[11px] font-mono text-slate-400">Sinkronisasi: Memuat...</span>
             </div>
           </div>
@@ -1918,6 +1924,80 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
                 </thead>
                 <tbody id="selectedDayHourlyTable" class="divide-y divide-slate-800/60 font-mono text-xs">
                   <!-- Baris jam-jaman akan diisi JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL AUDIT & VERIFIKASI SNAPSHOT GOOGLE SHEETS -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 md:p-6 space-y-5">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Google Sheets Tab: Forecast_7Days_Snapshot</span>
+                <h3 class="text-base font-bold text-white">Audit & Verifikasi Snapshot Prediksi Mingguan</h3>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">
+                Setiap snapshot prakiraan disimpan ke Spreadsheet dan diverifikasi secara otomatis terhadap observasi aktual METAR di <code>Sheet1</code> saat harinya tiba.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="verifySnapshots()" id="btnVerifySnapshots" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer">
+                <span id="iconVerifySnapshots">🔄</span>
+                <span>Verifikasi vs METAR Sheet1</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 KARTU METRIK KONTINGENSI VERIFIKASI -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <div class="text-[10px] font-mono text-slate-400">TOTAL SNAPSHOT</div>
+              <div id="metricTotalSnapshots" class="text-lg font-bold text-white font-mono mt-0.5">0</div>
+              <div id="metricPendingSnapshots" class="text-[10px] text-slate-500">0 Menunggu Hari-H</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <div class="text-[10px] font-mono text-slate-400">HIT (PREDIKSI SUKSES)</div>
+              <div id="metricHits" class="text-lg font-bold text-emerald-400 font-mono mt-0.5">0</div>
+              <div id="metricCorrectNeg" class="text-[10px] text-slate-500">0 Correct Negative</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <div class="text-[10px] font-mono text-slate-400">FALSE ALARM / MISS</div>
+              <div id="metricFalseAlarm" class="text-lg font-bold text-amber-400 font-mono mt-0.5">0 / 0</div>
+              <div class="text-[10px] text-slate-500">Peringatan Berlebih / Terlewat</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <div class="text-[10px] font-mono text-slate-400">AKURASI VERIFIKASI</div>
+              <div id="metricSnapshotAccuracy" class="text-lg font-bold text-cyan-400 font-mono mt-0.5">-%</div>
+              <div id="metricSnapshotPod" class="text-[10px] text-slate-500">POD: -% &bull; FAR: -%</div>
+            </div>
+          </div>
+
+          <!-- TABEL RIWAYAT SNAPSHOT & STATUS VERIFIKASI -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-300">Riwayat Catatan Snapshot & Hasil Pencocokan Lapangan</span>
+              <span id="snapshotStatusMsg" class="font-mono text-slate-400 text-[11px]">Memuat log snapshot...</span>
+            </div>
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 max-h-72">
+              <table class="w-full text-left text-xs">
+                <thead class="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 font-mono text-[11px] text-slate-400">
+                  <tr>
+                    <th class="py-2.5 px-3">WAKTU SNAPSHOT</th>
+                    <th class="py-2.5 px-3">TARGET HARI</th>
+                    <th class="py-2.5 px-3">LEAD</th>
+                    <th class="py-2.5 px-3">PREDIKSI STATUS</th>
+                    <th class="py-2.5 px-3">PELUANG</th>
+                    <th class="py-2.5 px-3">HUJAN / CAPE</th>
+                    <th class="py-2.5 px-3">OBSERVASI METAR AKTUAL</th>
+                    <th class="py-2.5 px-3 text-center">VERIFIKASI</th>
+                  </tr>
+                </thead>
+                <tbody id="snapshotTableBody" class="divide-y divide-slate-800/60 font-mono text-xs">
+                  <tr>
+                    <td colspan="8" class="p-4 text-center text-slate-500 text-xs">Memuat data dari Google Sheets...</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -2706,6 +2786,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
         weeklyForecastData = data;
         weeklyForecastLoaded = true;
         renderWeeklyUI(data);
+        loadSnapshotHistory();
 
         if (lastUpdatedEl) {
           lastUpdatedEl.innerText = `Update: ${data.generated_at_wib || 'Baru saja'}${data.cached ? ' (Cache)' : ' (Live)'}`;
@@ -2895,6 +2976,136 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
             </tr>
           `;
         }).join('');
+      }
+    }
+
+    // --- FITUR SNAPSHOT & VERIFIKASI GOOGLE SHEETS ---
+    async function saveSnapshotToGSheet(force = false) {
+      const btn = document.getElementById('btnSaveSnapshot');
+      const icon = document.getElementById('iconSaveSnapshot');
+      const statusMsg = document.getElementById('snapshotStatusMsg');
+
+      if (btn) btn.disabled = true;
+      if (icon) icon.innerText = "⏳";
+      if (statusMsg) statusMsg.innerText = "Menyimpan snapshot 7 hari ke Google Spreadsheet...";
+
+      try {
+        const url = `${API_BASE}/api/forecast-7days/snapshot${force ? '?force=true' : ''}`;
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+
+        if (statusMsg) {
+          statusMsg.innerText = `Sukses menyimpan ${data.saved_count} snapshot baru ke tab 'Forecast_7Days_Snapshot'!`;
+        }
+        await loadSnapshotHistory();
+      } catch (err) {
+        console.error("Gagal menyimpan snapshot ke GSheet:", err);
+        if (statusMsg) statusMsg.innerText = `Gagal menyimpan: ${err.message}`;
+      } finally {
+        if (btn) btn.disabled = false;
+        if (icon) icon.innerText = "💾";
+      }
+    }
+
+    async function loadSnapshotHistory() {
+      const statusMsg = document.getElementById('snapshotStatusMsg');
+      const tbody = document.getElementById('snapshotTableBody');
+
+      try {
+        const url = `${API_BASE}/api/forecast-7days/snapshots`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+
+        // 1. Update Metrik Kontingensi
+        const m = data.metrics || {};
+        const totalSnapshotsEl = document.getElementById('metricTotalSnapshots');
+        const pendingEl = document.getElementById('metricPendingSnapshots');
+        const hitsEl = document.getElementById('metricHits');
+        const cnEl = document.getElementById('metricCorrectNeg');
+        const faEl = document.getElementById('metricFalseAlarm');
+        const accEl = document.getElementById('metricSnapshotAccuracy');
+        const podFarEl = document.getElementById('metricSnapshotPod');
+
+        if (totalSnapshotsEl) totalSnapshotsEl.innerText = data.total_records || 0;
+        if (pendingEl) pendingEl.innerText = `${m.pending || 0} Menunggu Hari-H`;
+        if (hitsEl) hitsEl.innerText = m.hit || 0;
+        if (cnEl) cnEl.innerText = `${m.correct_negative || 0} Correct Negative`;
+        if (faEl) faEl.innerText = `${m.false_alarm || 0} / ${m.miss || 0}`;
+        if (accEl) accEl.innerText = data.total_verified > 0 ? `${m.accuracy}%` : "Belum Ada Data";
+        if (podFarEl) podFarEl.innerText = `POD: ${m.pod}% • FAR: ${m.far}%`;
+
+        // 2. Render Tabel Snapshot
+        const records = data.records || [];
+        if (!records.length) {
+          if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-500 text-xs">Belum ada catatan snapshot. Klik tombol "Simpan ke GSheet" di atas untuk membuat snapshot pertama.</td></tr>`;
+          return;
+        }
+
+        if (tbody) {
+          tbody.innerHTML = records.map(r => {
+            const verRes = String(r.verification_result || 'PENDING').toUpperCase();
+            let badgeClass = "bg-slate-800 text-slate-400 border border-slate-700";
+            if (verRes === "HIT") badgeClass = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            else if (verRes === "CORRECT NEGATIVE") badgeClass = "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30";
+            else if (verRes === "FALSE ALARM") badgeClass = "bg-amber-500/20 text-amber-400 border border-amber-500/30";
+            else if (verRes === "MISS") badgeClass = "bg-rose-500/20 text-rose-400 border border-rose-500/30";
+
+            const riskLabel = r.predicted_risk_label || 'AMAN';
+            let riskBadge = "text-emerald-400";
+            if (riskLabel === 'BAHAYA' || riskLabel === 'SIAGA BADAI') riskBadge = "text-rose-400";
+            else if (riskLabel === 'WASPADA') riskBadge = "text-amber-400";
+
+            return `
+              <tr class="hover:bg-slate-900/60 transition-colors">
+                <td class="py-2.5 px-3 whitespace-nowrap text-slate-400">${r.snapshot_time_wib || '-'}</td>
+                <td class="py-2.5 px-3 font-bold text-white whitespace-nowrap">${r.target_date || '-'} <span class="text-slate-400 font-normal">(${r.day_name || ''})</span></td>
+                <td class="py-2.5 px-3 font-mono text-cyan-400">+${r.lead_time_days}d</td>
+                <td class="py-2.5 px-3 font-bold ${riskBadge}">${riskLabel}</td>
+                <td class="py-2.5 px-3 font-bold text-slate-200">${r.predicted_max_prob || '-'}</td>
+                <td class="py-2.5 px-3 text-slate-300">${r.predicted_precip_mm}mm / ${r.predicted_cape_max}</td>
+                <td class="py-2.5 px-3 text-[11px] text-slate-400 max-w-[200px] truncate" title="${r.actual_metar_observed}">${r.actual_metar_observed || '-'}</td>
+                <td class="py-2.5 px-3 text-center">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${verRes}</span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        if (statusMsg) statusMsg.innerText = `Menampilkan ${records.length} rekaman snapshot dari Google Sheets`;
+      } catch (err) {
+        console.error("Gagal memuat log snapshot:", err);
+        if (statusMsg) statusMsg.innerText = `Gagal memuat log snapshot: ${err.message}`;
+      }
+    }
+
+    async function verifySnapshots() {
+      const btn = document.getElementById('btnVerifySnapshots');
+      const icon = document.getElementById('iconVerifySnapshots');
+      const statusMsg = document.getElementById('snapshotStatusMsg');
+
+      if (btn) btn.disabled = true;
+      if (icon) icon.innerText = "⏳";
+      if (statusMsg) statusMsg.innerText = "Mencocokkan rekaman snapshot vs data aktual METAR di Sheet1...";
+
+      try {
+        const url = `${API_BASE}/api/forecast-7days/verify`;
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+
+        if (statusMsg) {
+          statusMsg.innerText = `Verifikasi selesai: ${data.verified_count} tanggal baru berhasil diverifikasi!`;
+        }
+        await loadSnapshotHistory();
+      } catch (err) {
+        console.error("Gagal memverifikasi snapshot:", err);
+        if (statusMsg) statusMsg.innerText = `Gagal verifikasi: ${err.message}`;
+      } finally {
+        if (btn) btn.disabled = false;
+        if (icon) icon.innerText = "🔄";
       }
     }
 

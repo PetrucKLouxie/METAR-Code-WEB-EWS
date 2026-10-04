@@ -708,3 +708,37 @@ def get_weekly_forecast(refresh: bool = False):
         raise HTTPException(status_code=503, detail=f"Gagal memuat prakiraan 7 hari: {str(error)}")
 
 
+@app.post("/api/forecast-7days/snapshot")
+def trigger_forecast_snapshot(force: bool = False):
+    """Menyimpan snapshot prakiraan 7 hari ke Google Sheets tab 'Forecast_7Days_Snapshot'."""
+    try:
+        from snapshot_service import save_forecast_snapshot
+        return save_forecast_snapshot(force_new=force)
+    except Exception as error:
+        print(f"Save forecast snapshot failed: {error!r}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Gagal menyimpan snapshot ke GSheet: {str(error)}")
+
+
+@app.get("/api/forecast-7days/snapshots")
+def list_forecast_snapshots():
+    """Mengambil seluruh riwayat snapshot dan status verifikasinya dari Google Sheets."""
+    try:
+        from snapshot_service import get_all_snapshots
+        return get_all_snapshots()
+    except Exception as error:
+        print(f"Fetch snapshots failed: {error!r}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil riwayat snapshot dari GSheet: {str(error)}")
+
+
+@app.post("/api/forecast-7days/verify")
+def trigger_snapshot_verification():
+    """Memicu verifikasi pencocokan snapshot lampau vs data METAR riil di Sheet1."""
+    try:
+        from snapshot_service import verify_snapshots_with_metar_records
+        return verify_snapshots_with_metar_records()
+    except Exception as error:
+        print(f"Verify snapshots failed: {error!r}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Gagal memverifikasi snapshot: {str(error)}")
+
+
+
