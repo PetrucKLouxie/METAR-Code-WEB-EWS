@@ -172,6 +172,16 @@
           </svg>
           <span class="truncate">Hasil Pengujian (EWS)</span>
         </button>
+        <!-- 7. Prospek 7 Hari (AI-NWP Outlook) -->
+        <button onclick="switchTab('weekly')" id="nav-btn-weekly" class="nav-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent">
+          <div class="flex items-center gap-3 truncate">
+            <svg class="w-5 h-5 shrink-0 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span class="truncate">Prospek 7 Hari</span>
+          </div>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">NWP</span>
+        </button>
       </nav>
     </div>
 
@@ -1765,6 +1775,187 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
       </section>
 
+      <!-- ========================================================= -->
+      <!-- TAB 7: PROSPEK CUACA 7 HARI (AI-NWP EARLY WARNING SYSTEM) -->
+      <!-- ========================================================= -->
+      <section id="tab-weekly" class="tab-content hidden space-y-6">
+
+        <!-- HEADER BANNER & SINKRONISASI -->
+        <div class="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 border border-slate-800 shadow-xl relative overflow-hidden">
+          <div class="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1.5 max-w-3xl">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                  AI-NWP EARLY WARNING SYSTEM
+                </span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-800 border border-slate-700">WARR / SUB &bull; Juanda</span>
+              </div>
+              <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Prospek Cuaca Ekstrem 7 Hari Kedepan</h2>
+              <p class="text-xs md:text-sm text-slate-300 leading-relaxed">
+                Mengintegrasikan pemodelan fluida atmosfer global <strong>ECMWF & GFS</strong> dengan engine <strong>Pure-Math ML Hybrid (XGBoost + LSTM)</strong> lokal Juanda untuk memitigasi keterbatasan <em>lead time</em> 24 jam dan mendeteksi potensi cuaca berbahaya hingga 1 minggu ke depan.
+              </p>
+            </div>
+            <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
+              <button onclick="loadWeeklyForecast(true)" id="btnRefreshWeekly" class="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-2 shadow-lg shadow-cyan-600/20 transition-all cursor-pointer">
+                <svg id="iconRefreshWeekly" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>Perbarui Data NWP</span>
+              </button>
+              <span id="weeklyLastUpdated" class="text-[11px] font-mono text-slate-400">Sinkronisasi: Memuat...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 KARTU RINGKASAN MINGGUAN (KEY METRICS) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- 1. Status Risiko Puncak -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+            <div class="text-[11px] font-mono text-slate-400 flex items-center justify-between">
+              <span>RISIKO PUNCAK 7 HARI</span>
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            </div>
+            <div id="weeklyTopRiskLabel" class="text-lg md:text-xl font-black text-emerald-400">Memuat...</div>
+            <div id="weeklyTopRiskDesc" class="text-[11px] text-slate-400">Peluang tertinggi minggu ini</div>
+          </div>
+          <!-- 2. Akumulasi Hujan -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+            <div class="text-[11px] font-mono text-slate-400 flex items-center justify-between">
+              <span>TOTAL ESTIMASI HUJAN</span>
+              <span class="text-blue-400 text-xs">💧</span>
+            </div>
+            <div id="weeklyTotalPrecip" class="text-lg md:text-xl font-black text-white">0.0 mm</div>
+            <div class="text-[11px] text-slate-400">Akumulasi presipitasi 7 hari</div>
+          </div>
+          <!-- 3. Puncak Labilitas CAPE -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+            <div class="text-[11px] font-mono text-slate-400 flex items-center justify-between">
+              <span>PUNCAK ENERGI CAPE</span>
+              <span class="text-amber-400 text-xs">⚡</span>
+            </div>
+            <div id="weeklyMaxCape" class="text-lg md:text-xl font-black text-amber-400">0 J/kg</div>
+            <div id="weeklyCapeCategory" class="text-[11px] text-slate-400">Indeks pemicu awan badai</div>
+          </div>
+          <!-- 4. Maksimum Wind Gusts -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+            <div class="text-[11px] font-mono text-slate-400 flex items-center justify-between">
+              <span>HEMBUSAN ANGIN MAKS</span>
+              <span class="text-cyan-400 text-xs">💨</span>
+            </div>
+            <div id="weeklyMaxGust" class="text-lg md:text-xl font-black text-white">0.0 KT</div>
+            <div class="text-[11px] text-slate-400">Peak wind gusts runway Juanda</div>
+          </div>
+        </div>
+
+        <!-- KALENDER HORISONTAL 7 HARI (INTERACTIVE CARDS) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>Kalender Prospek Harian</span>
+              <span class="text-xs font-normal text-slate-400">(Klik salah satu hari untuk melihat rincian jam-ke-jam)</span>
+            </h3>
+            <span class="text-[11px] font-mono text-slate-400 hidden sm:block">Resolusi Temporal: 1 Jam &bull; Zona WIB</span>
+          </div>
+
+          <div id="weeklyDaysGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <!-- Kartu 7 hari akan di-render secara dinamis oleh JavaScript -->
+            <div class="col-span-full p-8 text-center text-slate-500 font-mono text-xs bg-slate-900 rounded-xl border border-slate-800">
+              <span class="inline-block animate-spin mr-2">⟳</span> Menghubungkan ke ECMWF/GFS & Model Hybrid Juanda...
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL RINCIAN HARI TERPILIH (DAY INSPECTOR) -->
+        <div id="weeklySelectedDayPanel" class="bg-slate-900 rounded-2xl border border-slate-800 p-5 md:p-6 space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="selectedDayBadge" class="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-800 text-cyan-300 border border-slate-700">Hari Terpilih</span>
+                <h3 id="selectedDayTitle" class="text-lg font-bold text-white">Prakiraan Detail Jam-ke-Jam</h3>
+              </div>
+              <p id="selectedDayThreatWindow" class="text-xs text-slate-400 mt-1">Window of Threat: Memuat data...</p>
+            </div>
+            <div id="selectedDayStatusBadge" class="self-start md:self-auto px-3 py-1 rounded-full text-xs font-bold font-mono">
+              STATUS
+            </div>
+          </div>
+
+          <!-- Rekomendasi Runway Hari Terpilih -->
+          <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-start gap-3">
+            <div class="text-xl">✈️</div>
+            <div class="space-y-1">
+              <div class="text-xs font-bold text-slate-200">Advis Operasional Keselamatan Runway:</div>
+              <p id="selectedDayRecommendation" class="text-xs text-slate-400 leading-relaxed">
+                Memuat rekomendasi operasional...
+              </p>
+            </div>
+          </div>
+
+          <!-- TABEL EVOLUSI 24 JAM -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-300">Profil Dinamika 24 Jam (Jam 00:00 - 23:00 WIB)</span>
+              <span class="font-mono text-slate-500 text-[11px]">Probabilitas Terkalibrasi Machine Learning</span>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-slate-800 bg-slate-900/80 font-mono text-[11px] text-slate-400">
+                    <th class="py-2.5 px-3">JAM (WIB)</th>
+                    <th class="py-2.5 px-3">CUACA</th>
+                    <th class="py-2.5 px-3">SUHU / EMBUN</th>
+                    <th class="py-2.5 px-3">RH (%)</th>
+                    <th class="py-2.5 px-3">ANGIN (KT)</th>
+                    <th class="py-2.5 px-3">GUSTS</th>
+                    <th class="py-2.5 px-3">HUJAN (MM)</th>
+                    <th class="py-2.5 px-3">CAPE (J/KG)</th>
+                    <th class="py-2.5 px-3 text-right">RISIKO AI</th>
+                    <th class="py-2.5 px-3 text-center">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody id="selectedDayHourlyTable" class="divide-y divide-slate-800/60 font-mono text-xs">
+                  <!-- Baris jam-jaman akan diisi JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- KOTAK METODOLOGI & JUSTIFIKASI ILMIAH -->
+        <div class="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+          <div class="flex items-center gap-2 text-cyan-400 font-bold text-sm">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Metodologi Ilmiah: Integrasi AI-NWP Post-Processing (WMO Best Practice)</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-400 leading-relaxed">
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
+              <div class="font-bold text-slate-200">1. Mengapa Butuh Data ECMWF/GFS?</div>
+              <p class="text-[11px]">
+                Model Machine Learning lokal stasiun tunggal terbatas pada rentang waktu nowcasting (\(\le 24\) jam) karena efek akumulasi galat dan ketiadaan sinyal fluida atmosfer masa depan. ECMWF/GFS memberikan proyeksi fluida 3D global hingga 7 hari kedepan.
+              </p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
+              <div class="font-bold text-slate-200">2. Mengapa Perlu Dikoreksi Model Hybrid?</div>
+              <p class="text-[11px]">
+                Model numerik global memiliki resolusi spasial makro (9–25 km) sehingga sering bias meremehkan (*underforecast*) badai petir mendadak di runway Juanda. Engine XGBoost + LSTM mengoreksi bias tersebut berdasarkan hubungan mikroklimat pesisir Selat Madura.
+              </p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
+              <div class="font-bold text-slate-200">3. Konsep Two-Tier EWS (ICAO/BMKG)</div>
+              <p class="text-[11px]">
+                Prospek 7 Hari bertindak sebagai <strong>Tier 1 (Strategic Outlook)</strong> untuk mitigasi jadwal maskapai dan rotasi armada. Saat hari-H tiba, sistem secara mulus beralih ke <strong>Tier 2 (Tactical METAR Live Nowcasting)</strong> untuk aksi real-time runway.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
     </div>
   </main>
 
@@ -1778,6 +1969,9 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
     let xgbPredictionLoaded = false;
     let lstmPredictionLoaded = false;
     let lstmMetricsLoaded = false;
+    let weeklyForecastLoaded = false;
+    let weeklyForecastData = null;
+    let selectedWeeklyDayIndex = 0;
 
     // --- Tab Switching (SPA Vanilla JS) ---
     function switchTab(tabId) {
@@ -1824,6 +2018,10 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
       } else if (tabId === 'evaluation') {
         titleEl.innerText = "Hasil Pengujian & Verifikasi WMO";
         subEl.innerText = "Tabel Kontingensi 2x2, Metrik Rare-Event & 4 Diagram Verifikasi";
+      } else if (tabId === 'weekly') {
+        titleEl.innerText = "Prospek Cuaca 7 Hari (AI-NWP)";
+        subEl.innerText = "Integrasi Model ECMWF/GFS & Machine Learning Hybrid Juanda";
+        if (!weeklyForecastLoaded) loadWeeklyForecast();
       }
 
       if ((tabId === 'xgboost' || tabId === 'lstm' || tabId === 'evaluation') && window.MathJax && window.MathJax.typesetPromise) {
@@ -2484,6 +2682,220 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
           updateCountdownDisplay();
         }
       }, 1000);
+    }
+
+    // =========================================================
+    // FITUR PROSPEK CUACA 7 HARI (AI-NWP EARLY WARNING SYSTEM)
+    // =========================================================
+    async function loadWeeklyForecast(forceRefresh = false) {
+      const btn = document.getElementById('btnRefreshWeekly');
+      const icon = document.getElementById('iconRefreshWeekly');
+      const lastUpdatedEl = document.getElementById('weeklyLastUpdated');
+      const gridEl = document.getElementById('weeklyDaysGrid');
+
+      if (btn) btn.disabled = true;
+      if (icon) icon.classList.add('animate-spin');
+      if (lastUpdatedEl) lastUpdatedEl.innerText = "Sinkronisasi: Mengunduh data ECMWF/GFS...";
+
+      try {
+        const url = `${API_BASE}/api/forecast-7days${forceRefresh ? '?refresh=true' : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+
+        weeklyForecastData = data;
+        weeklyForecastLoaded = true;
+        renderWeeklyUI(data);
+
+        if (lastUpdatedEl) {
+          lastUpdatedEl.innerText = `Update: ${data.generated_at_wib || 'Baru saja'}${data.cached ? ' (Cache)' : ' (Live)'}`;
+        }
+      } catch (err) {
+        console.error("Gagal memuat prospek cuaca 7 hari:", err);
+        if (lastUpdatedEl) lastUpdatedEl.innerText = "Gagal sinkronisasi data NWP";
+        if (gridEl) {
+          gridEl.innerHTML = `
+            <div class="col-span-full p-6 text-center text-rose-400 font-mono text-xs bg-rose-950/20 rounded-xl border border-rose-800">
+              Gagal memuat data prakiraan 7 hari: ${err.message}. Pastikan koneksi internet aktif.
+            </div>
+          `;
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+
+    function renderWeeklyUI(data) {
+      const summaries = data.daily_summaries || [];
+      if (!summaries.length) return;
+
+      // 1. Hitung Ringkasan Metrik 7 Hari
+      let topRiskProb = 0;
+      let topRiskLabel = "AMAN";
+      let topRiskColor = "emerald";
+      let totalPrecip = 0;
+      let maxCape = 0;
+      let maxGust = 0;
+
+      summaries.forEach(day => {
+        if (day.max_risk_prob > topRiskProb) {
+          topRiskProb = day.max_risk_prob;
+          topRiskLabel = day.risk_label;
+          topRiskColor = day.risk_color === 'red' ? 'rose' : (day.risk_color === 'amber' ? 'amber' : 'emerald');
+        }
+        totalPrecip += (day.precip_sum_mm || 0);
+        if (day.cape_max_jkg > maxCape) maxCape = day.cape_max_jkg;
+        if (day.wind_gust_max_kt > maxGust) maxGust = day.wind_gust_max_kt;
+      });
+
+      // Update Top Metrics UI
+      const topRiskEl = document.getElementById('weeklyTopRiskLabel');
+      const topRiskDesc = document.getElementById('weeklyTopRiskDesc');
+      if (topRiskEl) {
+        topRiskEl.innerText = `${topRiskLabel} (${topRiskProb.toFixed(1)}%)`;
+        topRiskEl.className = `text-lg md:text-xl font-black text-${topRiskColor}-400`;
+      }
+      if (topRiskDesc) {
+        topRiskDesc.innerText = topRiskProb >= 65 ? "Indikasi bahaya cuaca signifikan" : (topRiskProb >= 28 ? "Perlu antisipasi peningkatan konveksi" : "Kondisi umum stabil dan aman");
+      }
+
+      const totalPrecipEl = document.getElementById('weeklyTotalPrecip');
+      if (totalPrecipEl) totalPrecipEl.innerText = `${totalPrecip.toFixed(1)} mm`;
+
+      const maxCapeEl = document.getElementById('weeklyMaxCape');
+      const capeCatEl = document.getElementById('weeklyCapeCategory');
+      if (maxCapeEl) maxCapeEl.innerText = `${maxCape} J/kg`;
+      if (capeCatEl) {
+        capeCatEl.innerText = maxCape >= 2500 ? "Atmosfer Sangat Labil (Severe)" : (maxCape >= 1200 ? "Labil Sedang (Potensi TS)" : "Atmosfer Relatif Stabil");
+      }
+
+      const maxGustEl = document.getElementById('weeklyMaxGust');
+      if (maxGustEl) maxGustEl.innerText = `${maxGust.toFixed(1)} KT`;
+
+      // 2. Render 7 Kartu Kalender
+      const gridEl = document.getElementById('weeklyDaysGrid');
+      if (gridEl) {
+        gridEl.innerHTML = summaries.map((day, idx) => {
+          const isSelected = idx === selectedWeeklyDayIndex;
+          const statusBg = day.risk_color === 'red' 
+            ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' 
+            : (day.risk_color === 'amber' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30');
+
+          const iconSymbol = day.weather_icon === 'bolt' ? '⚡' : (day.weather_icon === 'cloud-showers-heavy' || day.weather_icon === 'cloud-rain' ? '🌧️' : (day.weather_icon === 'cloud-sun' || day.weather_icon === 'sun-cloud' ? '⛅' : '☀️'));
+
+          const borderSelect = isSelected 
+            ? 'border-cyan-400 ring-2 ring-cyan-500/40 bg-slate-900 shadow-lg shadow-cyan-950/50' 
+            : 'border-slate-800 bg-slate-950/60 hover:bg-slate-900 hover:border-slate-700';
+
+          return `
+            <div id="card-day-${idx}" onclick="selectWeeklyDay(${idx})" class="p-3.5 rounded-xl border ${borderSelect} cursor-pointer transition-all flex flex-col justify-between space-y-2.5">
+              <div>
+                <div class="flex items-center justify-between text-[11px] font-mono">
+                  <span class="font-bold text-white">${day.day_name}</span>
+                  ${day.is_today ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">HARI INI</span>' : `<span class="text-slate-400 text-[10px]">${day.date.split('-').slice(1).join('/')}</span>`}
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                  <span class="text-2xl">${iconSymbol}</span>
+                  <div class="text-right">
+                    <div class="text-xs font-bold text-white font-mono">${day.temp_max}° <span class="text-slate-500 text-[10px]">/ ${day.temp_min}°</span></div>
+                    <div class="text-[10px] text-slate-400 truncate max-w-[80px]">${day.weather_desc}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800/80 space-y-1.5">
+                <div class="flex items-center justify-between text-[11px] font-mono">
+                  <span class="text-slate-400 text-[10px]">Risiko AI</span>
+                  <span class="font-bold ${day.risk_color === 'red' ? 'text-rose-400' : (day.risk_color === 'amber' ? 'text-amber-400' : 'text-emerald-400')}">${day.max_risk_prob}%</span>
+                </div>
+                <div class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span>Hujan: <strong class="text-slate-200">${day.precip_sum_mm}mm</strong></span>
+                  <span>CAPE: <strong class="text-slate-200">${day.cape_max_jkg}</strong></span>
+                </div>
+                <div class="px-2 py-0.5 rounded text-[10px] font-mono font-bold text-center border ${statusBg}">
+                  ${day.risk_label}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 3. Tampilkan Rincian Hari Terpilih
+      selectWeeklyDay(selectedWeeklyDayIndex);
+    }
+
+    function selectWeeklyDay(dayIndex) {
+      if (!weeklyForecastData || !weeklyForecastData.daily_summaries) return;
+      const summaries = weeklyForecastData.daily_summaries;
+      if (dayIndex >= summaries.length) dayIndex = 0;
+      selectedWeeklyDayIndex = dayIndex;
+      const day = summaries[dayIndex];
+
+      // Update highlight kartu di grid
+      summaries.forEach((_, idx) => {
+        const card = document.getElementById(`card-day-${idx}`);
+        if (card) {
+          if (idx === dayIndex) {
+            card.className = "p-3.5 rounded-xl border border-cyan-400 ring-2 ring-cyan-500/40 bg-slate-900 shadow-lg shadow-cyan-950/50 cursor-pointer transition-all flex flex-col justify-between space-y-2.5";
+          } else {
+            card.className = "p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900 hover:border-slate-700 cursor-pointer transition-all flex flex-col justify-between space-y-2.5";
+          }
+        }
+      });
+
+      // Update Panel Header Hari Terpilih
+      const badgeEl = document.getElementById('selectedDayBadge');
+      const titleEl = document.getElementById('selectedDayTitle');
+      const windowEl = document.getElementById('selectedDayThreatWindow');
+      const statusBadgeEl = document.getElementById('selectedDayStatusBadge');
+      const recEl = document.getElementById('selectedDayRecommendation');
+
+      if (badgeEl) badgeEl.innerText = day.day_name.toUpperCase();
+      if (titleEl) titleEl.innerText = `${day.date_display} (${day.weather_desc})`;
+      if (windowEl) windowEl.innerHTML = `<span class="text-slate-300 font-bold">Jam Rawan Kritis:</span> <span class="font-mono text-cyan-400 font-bold">${day.peak_window}</span> &bull; Peluang Risiko Puncak: <span class="font-mono font-bold ${day.risk_color === 'red' ? 'text-rose-400' : (day.risk_color === 'amber' ? 'text-amber-400' : 'text-emerald-400')}">${day.max_risk_prob}%</span>`;
+      
+      if (statusBadgeEl) {
+        statusBadgeEl.innerText = `STATUS: ${day.risk_label}`;
+        statusBadgeEl.className = `self-start md:self-auto px-3.5 py-1 rounded-full text-xs font-bold font-mono border ${
+          day.risk_color === 'red' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : (day.risk_color === 'amber' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40')
+        }`;
+      }
+
+      if (recEl) recEl.innerText = day.recommendation;
+
+      // Update Tabel Jam-ke-Jam (24 Jam)
+      const tableBody = document.getElementById('selectedDayHourlyTable');
+      if (tableBody) {
+        const hours = day.hourly_detail || [];
+        tableBody.innerHTML = hours.map(h => {
+          const rowBadge = h.risk_level === 2 
+            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' 
+            : (h.risk_level === 1 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20');
+
+          const iconSymbol = h.weather_icon === 'bolt' ? '⚡' : (h.weather_icon === 'cloud-showers-heavy' || h.weather_icon === 'cloud-rain' ? '🌧️' : (h.weather_icon === 'cloud-sun' || h.weather_icon === 'sun-cloud' ? '⛅' : '☀️'));
+
+          const highlightRow = h.risk_level >= 1 ? (h.risk_level === 2 ? 'bg-rose-950/20' : 'bg-amber-950/10') : '';
+
+          return `
+            <tr class="hover:bg-slate-900/60 transition-colors ${highlightRow}">
+              <td class="py-2 px-3 font-bold text-white">${h.hour}</td>
+              <td class="py-2 px-3 whitespace-nowrap"><span class="mr-1">${iconSymbol}</span> ${h.weather_desc}</td>
+              <td class="py-2 px-3">${h.temperature}° / <span class="text-slate-400">${h.dew_point}°</span></td>
+              <td class="py-2 px-3 ${h.relative_humidity >= 90 ? 'text-cyan-400 font-bold' : ''}">${h.relative_humidity}%</td>
+              <td class="py-2 px-3">${h.wind_speed_kt} kt (${h.wind_direction}°)</td>
+              <td class="py-2 px-3 ${h.wind_gusts_kt >= 20 ? 'text-amber-400 font-bold' : ''}">${h.wind_gusts_kt} kt</td>
+              <td class="py-2 px-3 ${h.precipitation_mm > 0 ? 'text-cyan-300 font-bold' : 'text-slate-500'}">${h.precipitation_mm}</td>
+              <td class="py-2 px-3 ${h.cape_jkg >= 1500 ? 'text-amber-400 font-bold' : (h.cape_jkg >= 2500 ? 'text-rose-400 font-bold' : 'text-slate-400')}">${h.cape_jkg}</td>
+              <td class="py-2 px-3 text-right font-bold ${h.risk_level === 2 ? 'text-rose-400' : (h.risk_level === 1 ? 'text-amber-400' : 'text-emerald-400')}">${h.calibrated_prob}%</td>
+              <td class="py-2 px-3 text-center">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${rowBadge}">${h.risk_label}</span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
     }
 
     // Modal Image Viewer untuk 4 Diagram Verifikasi

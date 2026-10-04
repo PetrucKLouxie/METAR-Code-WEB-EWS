@@ -18,6 +18,7 @@ from lstm_service import (
     predict_lstm_from_raw_metar_list,
 )
 from hybrid_service import compute_hybrid_predictions, predict_hybrid_from_records
+from weekly_nwp_service import compute_ai_nwp_weekly_forecast
 
 try:
     from google.oauth2.service_account import Credentials
@@ -692,4 +693,18 @@ def get_live_evaluation_results():
         except Exception:
             pass
     raise HTTPException(status_code=404, detail="Hasil evaluasi live belum tersedia.")
+
+
+@app.get("/api/forecast-7days")
+def get_weekly_forecast(refresh: bool = False):
+    """
+    Mengembalikan Prospek Cuaca & Peringatan Dini 7 Hari ke Depan
+    berbasis fusi model global ECMWF/GFS dan Machine Learning Hybrid Juanda.
+    """
+    try:
+        return compute_ai_nwp_weekly_forecast(force_refresh=refresh)
+    except Exception as error:
+        print(f"Weekly forecast failed: {error!r}", flush=True)
+        raise HTTPException(status_code=503, detail=f"Gagal memuat prakiraan 7 hari: {str(error)}")
+
 
