@@ -225,6 +225,12 @@ def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
             actual_adverse = metar_info["has_adverse"]
             predicted_level = int(row[idx_risk_level]) if str(row[idx_risk_level]).isdigit() else 0
             predicted_adverse = predicted_level >= 1  # Waspada / Siaga
+            is_today = (target_date == today_str)
+
+            # Jika target adalah hari ini (masih berlangsung di WIB) dan belum ada cuaca buruk:
+            # JANGAN putuskan False Alarm / Correct Negative sekarang, karena hari belum tuntas (masih ada sisa jam)!
+            if is_today and not actual_adverse:
+                continue
 
             # Kategori Kontingensi 2x2:
             if predicted_adverse and actual_adverse:
