@@ -36,6 +36,9 @@ if os.path.isdir(PUBLIC_DIR):
 ASSET_DIR = os.path.join(PUBLIC_DIR, "assets")
 if os.path.isdir(ASSET_DIR):
     app.mount("/assets", StaticFiles(directory=ASSET_DIR), name="assets")
+IMAGES_DIR = os.path.join(PUBLIC_DIR, "images")
+if os.path.isdir(IMAGES_DIR):
+    app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 LSTM_IMAGE_DIR = os.path.join(PUBLIC_DIR, "images", "lstm")
 if os.path.isdir(LSTM_IMAGE_DIR):
     app.mount("/images/lstm", StaticFiles(directory=LSTM_IMAGE_DIR), name="lstm-images")
@@ -510,10 +513,17 @@ def find_index_file():
 @app.get("/")
 @app.get("/index.html")
 def serve_index():
-    """Menyajikan halaman web frontend"""
+    """Menyajikan halaman web frontend dengan no-cache agar perubahan kode langsung terlihat"""
     path = find_index_file()
     if path:
-        return FileResponse(path)
+        return FileResponse(
+            path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     return {"message": "index.html tidak ditemukan di direktori project"}
 
 @app.get("/api")
