@@ -30,10 +30,13 @@ except ImportError:
         pass
 
 app = FastAPI(title="WARR METAR Collector & Parser")
-ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public", "assets")
+PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+if os.path.isdir(PUBLIC_DIR):
+    app.mount("/public", StaticFiles(directory=PUBLIC_DIR), name="public")
+ASSET_DIR = os.path.join(PUBLIC_DIR, "assets")
 if os.path.isdir(ASSET_DIR):
     app.mount("/assets", StaticFiles(directory=ASSET_DIR), name="assets")
-LSTM_IMAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public", "images", "lstm")
+LSTM_IMAGE_DIR = os.path.join(PUBLIC_DIR, "images", "lstm")
 if os.path.isdir(LSTM_IMAGE_DIR):
     app.mount("/images/lstm", StaticFiles(directory=LSTM_IMAGE_DIR), name="lstm-images")
 
