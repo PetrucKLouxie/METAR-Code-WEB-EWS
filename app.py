@@ -17,6 +17,7 @@ from lstm_service import (
     predict_lstm_from_gsheet,
     predict_lstm_from_raw_metar_list,
 )
+from hybrid_service import compute_hybrid_predictions, predict_hybrid_from_records
 
 try:
     from google.oauth2.service_account import Credentials
@@ -634,3 +635,34 @@ def predict_lstm(payload: dict):
 @app.get("/api/lstm/metrics")
 def lstm_metrics():
     return get_lstm_public_metadata()
+
+
+@app.get("/api/hybrid/status")
+@app.post("/api/hybrid/predict")
+def predict_hybrid(payload: dict = None):
+    """
+    Menghasilkan keputusan Early Warning System (EWS) Hybrid terpadu
+    yang menggabungkan model fisik XGBoost dan temporal sequence LSTM.
+    """
+    try:
+        try:
+            sheet = get_sheet()
+            records, _ = get_recent_rows_from_sheet(sheet, count=20)
+            result_source = "google_sheets"
+        except Exception:
+            records = load_local_history()[-20:]
+            result_source = "local_storage"
+
+        if len(records) < 12:
+            # Jika riwayat kurang, ambil minimal fallback dari cache
+            records = load_local_history()[-20:]
+            result_source = "local_storage"
+
+        result = predict_hybrid_from_records(records)
+        result["source"] = result_source
+        return result
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        print(f"Hybrid EWS inference failed: {error!r}; cause={error.__cause__!r}", flush=True)
+        raise HTTPException(status_code=503, detail="Inferensi Hybrid EWS tidak tersedia saat ini.") from error

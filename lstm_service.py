@@ -128,28 +128,37 @@ def _parse_lstm_timestamp(value):
     return parsed.astimezone(timezone.utc)
 
 
-def _number(value, field_name):
+def _number(value, field_name, default=None):
+    if value is None or value == "":
+        if default is not None:
+            return float(default)
+        raise ValueError(f"Nilai {field_name} pada observasi LSTM tidak boleh kosong.")
     try:
         return float(value)
     except (TypeError, ValueError):
+        if default is not None:
+            return float(default)
         raise ValueError(f"Nilai {field_name} pada observasi LSTM tidak valid.") from None
 
 
 def _normalize_observation(record):
     raw_metar = record.get("raw_metar") or record.get("raw")
     if raw_metar:
-        parsed = parse_lstm_metar(raw_metar)
-        timestamp = record.get("timestamp") or record.get("slot_30min")
-        if timestamp:
-            parsed["timestamp"] = _parse_lstm_timestamp(timestamp)
-        return parsed
+        try:
+            parsed = parse_lstm_metar(raw_metar)
+            timestamp = record.get("timestamp") or record.get("slot_30min")
+            if timestamp:
+                parsed["timestamp"] = _parse_lstm_timestamp(timestamp)
+            return parsed
+        except ValueError:
+            pass
 
     timestamp = record.get("timestamp") or record.get("slot_30min")
     if not timestamp:
         raise ValueError("Setiap observasi LSTM harus memiliki timestamp UTC.")
     return {
         "timestamp": _parse_lstm_timestamp(timestamp),
-        "wind_speed": _number(record.get("wind_speed"), "wind_speed"),
+        "wind_speed": _number(record.get("wind_speed"), "wind_speed", default=0.0),
         "temperature": _number(record.get("temperature", record.get("temp")), "temperature"),
         "dew_point": _number(record.get("dew_point"), "dew_point"),
         "pressure": _number(record.get("pressure"), "pressure"),
@@ -257,10 +266,11 @@ def predict_lstm_from_observations(records):
     if len(observations) < LOOKBACK:
         raise ValueError(f"Diperlukan minimal {LOOKBACK} observasi METAR untuk lookback LSTM.")
 
+    # Verifikasi urutan waktu (hanya pastikan monoton naik, tidak crash jika ada gap data internet)
     for previous, current in zip(observations, observations[1:]):
         interval = (current["timestamp"] - previous["timestamp"]).total_seconds()
-        if interval <= 0 or abs(interval - 1800) > 900:
-            raise ValueError("Observasi LSTM harus berurutan dengan interval sekitar 30 menit.")
+        if interval <= 0:
+            raise ValueError("Observasi LSTM harus memiliki timestamp berurutan maju.")
 
     feature_rows = [_feature_row(observations, index)[0] for index in range(len(observations))]
     feature_rows = feature_rows[-LOOKBACK:]

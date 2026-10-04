@@ -199,6 +199,38 @@
           </div>
         </div>
 
+        <!-- PANEL PERINGATAN DINI HYBRID EWS (XGBoost + LSTM) -->
+        <div class="p-5 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-900/70 text-cyan-300 border border-cyan-500/40">HYBRID EWS ENGINE</span>
+                <span class="text-xs text-slate-400">XGBoost Physical Split + LSTM Sequence Memory</span>
+              </div>
+              <h2 class="text-lg sm:text-xl font-bold text-white mt-1">Status Peringatan Dini Multi-Horizon (Bandara Juanda - WARR)</h2>
+            </div>
+            <div id="hybridOverallBadge" class="self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-emerald-950/60 text-emerald-300 border-emerald-500/50 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>STATUS: MEMUAT...</span>
+            </div>
+          </div>
+
+          <!-- Kartu Horizon EWS Hybrid (1h, 3h, 9h, 18h, 24h) -->
+          <div id="hybridHorizonCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-1">
+            <div class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 text-slate-500 text-xs">Memuat prakiraan EWS...</div>
+          </div>
+
+          <!-- Footer Info & Penjelasan Konsensus -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
+            <div class="flex items-center gap-4">
+              <span>● <strong class="text-slate-300">Konsensus:</strong> Standar Safety-First (Level Tertinggi)</span>
+              <span>● <strong class="text-slate-300">Waspada:</strong> Kuning</span>
+              <span>● <strong class="text-slate-300">Bahaya:</strong> Merah</span>
+            </div>
+            <div id="hybridLastUpdated" class="font-mono text-slate-500 text-[10px]">Otomatis diperbarui tiap METAR masuk</div>
+          </div>
+        </div>
+
         <!-- 4 Kartu Metrik Fitur Utama -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Card 1: Wind Speed -->
@@ -1396,8 +1428,91 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
             </tr>
           `;
         }).join('');
+        // Auto-Trigger: Update Status EWS Hybrid Terpadu
+        loadHybridEws();
       } catch (e) {
         console.error("Gagal load history:", e);
+      }
+    }
+
+    // --- AUTO-TRIGGER & RENDER HYBRID EWS (XGBoost + LSTM) ---
+    async function loadHybridEws() {
+      const badge = document.getElementById('hybridOverallBadge');
+      const cards = document.getElementById('hybridHorizonCards');
+      const updatedEl = document.getElementById('hybridLastUpdated');
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/hybrid/status`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || "Gagal memuat EWS Hybrid");
+
+        // 1. Overall Badge
+        const overall = json.overall_status || { level: 0, label: "AMAN", color: "green" };
+        if (overall.color === "red") {
+          badge.className = "self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-red-950/80 text-red-300 border-red-500/60 flex items-center gap-2 animate-pulse";
+          badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-400"></span><span>STATUS EWS: BAHAYA (LEVEL 2)</span>`;
+        } else if (overall.color === "amber") {
+          badge.className = "self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-amber-950/70 text-amber-300 border-amber-500/60 flex items-center gap-2";
+          badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span>STATUS EWS: WASPADA (LEVEL 1)</span>`;
+        } else {
+          badge.className = "self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-emerald-950/60 text-emerald-300 border-emerald-500/50 flex items-center gap-2";
+          badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span><span>STATUS EWS: AMAN (NORMAL)</span>`;
+        }
+
+        // 2. Horizon Cards
+        const cardClasses = {
+          green: "border-emerald-500/40 bg-emerald-950/20",
+          amber: "border-amber-500/50 bg-amber-950/25",
+          red: "border-red-500/60 bg-red-950/30"
+        };
+        const badgeClasses = {
+          green: "bg-emerald-900/70 text-emerald-300 border-emerald-500/40",
+          amber: "bg-amber-900/70 text-amber-200 border-amber-500/50",
+          red: "bg-red-900/70 text-red-200 border-red-500/50"
+        };
+
+        cards.innerHTML = (json.predictions || []).map(p => {
+          const tone = p.status.color;
+          const probPct = (p.hybrid_probability * 100).toFixed(1);
+          const xgbProb = p.xgb.probability !== null ? (p.xgb.probability * 100).toFixed(1) + "%" : "-";
+          const lstmProb = p.lstm.probability !== null ? (p.lstm.probability * 100).toFixed(1) + "%" : "-";
+
+          return `
+            <article class="p-4 rounded-xl border ${cardClasses[tone] || cardClasses.green} flex flex-col justify-between transition-all">
+              <div>
+                <div class="flex items-center justify-between gap-1">
+                  <h3 class="font-mono font-bold text-white text-base">+${p.horizon}</h3>
+                  <span class="px-2 py-0.5 rounded border text-[10px] font-bold ${badgeClasses[tone] || badgeClasses.green}">
+                    ${p.status.label}
+                  </span>
+                </div>
+                <div class="mt-2 text-2xl font-mono font-extrabold text-white">
+                  ${probPct}<span class="text-xs text-slate-400 font-normal">%</span>
+                </div>
+                <div class="mt-1 text-[11px] text-slate-400 font-mono flex items-center justify-between">
+                  <span>XGB: <strong class="text-cyan-300">${xgbProb}</strong></span>
+                  <span>LSTM: <strong class="text-emerald-300">${lstmProb}</strong></span>
+                </div>
+              </div>
+              <div class="mt-3 pt-2.5 border-t border-slate-700/60 text-[10px] leading-snug">
+                <div class="text-cyan-200 font-mono font-medium">${p.target_wib}</div>
+                <p class="text-slate-300 mt-1 line-clamp-2" title="${p.recommendation}">${p.recommendation}</p>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        if (updatedEl && json.observed_at_wib) {
+          updatedEl.innerText = `Observasi: ${json.observed_at_wib} (${json.source === 'google_sheets' ? 'Google Sheets' : 'Cache Lokal'})`;
+        }
+      } catch (err) {
+        console.warn("EWS Hybrid belum dapat dihitung:", err);
+        cards.innerHTML = `
+          <div class="col-span-full p-4 rounded-xl border border-slate-800 bg-slate-950/60 text-slate-400 text-xs flex items-center justify-between">
+            <span>Mengumpulkan minimal 12 record riwayat METAR untuk menghitung EWS Hybrid...</span>
+            <span class="text-[11px] text-cyan-400">Sinkronisasi otomatis aktif</span>
+          </div>
+        `;
       }
     }
 

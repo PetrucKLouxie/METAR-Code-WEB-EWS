@@ -64,20 +64,24 @@ def parse_raw_metar(raw_metar):
 def _normalize_observation(record):
     raw_metar = record.get("raw_metar")
     if raw_metar:
-        parsed = parse_raw_metar(raw_metar)
-        timestamp = record.get("timestamp") or record.get("slot_30min")
-        if timestamp:
-            parsed["timestamp"] = _parse_timestamp(timestamp)
-        return parsed
+        try:
+            parsed = parse_raw_metar(raw_metar)
+            timestamp = record.get("timestamp") or record.get("slot_30min")
+            if timestamp:
+                parsed["timestamp"] = _parse_timestamp(timestamp)
+            return parsed
+        except ValueError:
+            pass
 
     timestamp = record.get("timestamp") or record.get("slot_30min")
+    wind = _number(record.get("wind_speed"))
     return {
         "timestamp": _parse_timestamp(timestamp) if timestamp else None,
-        "wind_speed": _number(record.get("wind_speed")),
+        "wind_speed": wind if wind is not None else 0.0,
         "temperature": _number(record.get("temperature", record.get("temp"))),
         "dew_point": _number(record.get("dew_point")),
         "pressure": _number(record.get("pressure")),
-        "raw_metar": None,
+        "raw_metar": raw_metar,
     }
 
 
@@ -108,10 +112,15 @@ def _saturation_vapor_pressure(temp_c):
 
 def _observation_at_lag(observations, minutes):
     target = observations[-1]["timestamp"] - timedelta(minutes=minutes)
-    closest = min(observations[:-1], key=lambda item: abs(item["timestamp"] - target))
-    if abs(closest["timestamp"] - target) > timedelta(minutes=15):
-        raise ValueError(f"Riwayat tidak memiliki observasi yang sesuai untuk lag {minutes // 60} jam.")
-    return closest
+    valid_obs = [obs for obs in observations[:-1] if obs.get("timestamp")]
+    if valid_obs:
+        closest = min(valid_obs, key=lambda item: abs(item["timestamp"] - target))
+        if abs(closest["timestamp"] - target) <= timedelta(minutes=45):
+            return closest
+    steps = max(1, round(minutes / 30))
+    if len(observations) > steps:
+        return observations[-1 - steps]
+    return observations[0]
 
 
 def _load_model(horizon):

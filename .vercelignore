@@ -8,6 +8,7 @@ metar_history.json
 model_check.txt
 METAR_Record.csv
 pelatihanXGboost.py
+pelatihanLSTM.py
 Model XGBoost/*.png
 Model XGBoost/*.joblib
 Model XGBoost/model_config.json
