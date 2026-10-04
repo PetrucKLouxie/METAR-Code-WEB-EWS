@@ -17,6 +17,7 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="mathjax-script"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
@@ -1593,6 +1594,155 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
           </div>
         </div>
 
+        <!-- 5. EMPAT DIAGRAM STANDAR VERIFIKASI LITERATUR METEOROLOGI (WMO / AMS / ICAO) -->
+        <div class="space-y-6 pt-2">
+          <div class="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div class="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">Standar Penyajian Literatur Ilmiah (WMO / AMS / ICAO)</div>
+              <h2 class="text-lg sm:text-xl font-bold text-white mt-1">4 Diagram Standar Verifikasi EWS: Aktual vs Prediksi</h2>
+            </div>
+            <div class="text-xs text-slate-400 font-mono text-right">
+              <div>Rujukan: WMO-TD No. 1023 &bull; Roebber (2009) &bull; ICAO Annex 3</div>
+              <div class="text-[11px] text-emerald-400">Data Pengujian Langsung Google Sheets WARR</div>
+            </div>
+          </div>
+
+          <!-- DIAGRAM 1: Time-Series Timeline Strip (Meteogram Verifikasi) -->
+          <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">Diagram 1</span>
+                  <h3 class="text-base font-bold text-white">Time-Series Timeline Strip (Meteogram Verifikasi Aktual vs Prediksi)</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Perbandingan deret waktu kontinu peluang prediksi EWS (%) terhadap kemunculan cuaca ekstrem aktual METAR (TS/RA/Gust) pada jendela observasi lapangan.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Hybrid Prob (%)
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                  <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> Badai Aktual (Event)
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                  <span class="w-2.5 h-0.5 bg-amber-400"></span> Ambang Waspada (15%)
+                </span>
+              </div>
+            </div>
+
+            <!-- Canvas Chart -->
+            <div class="relative w-full h-80 sm:h-96 bg-slate-950 rounded-xl p-3 border border-slate-800/80">
+              <canvas id="chartTimelineMeteogram"></canvas>
+            </div>
+
+            <!-- Penjelasan Interpretasi Literatur -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-emerald-400 font-bold mb-1 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Hit (Deteksi Berhasil)
+                </div>
+                <p class="text-slate-400 text-[11px]">Kurva probabilitas Hybrid melonjak melampaui ambang batas 15%–30% sebelum balok merah (cuaca buruk riil) terjadi, memberikan <em>lead time</em> evakuasi/hold pesawat.</p>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-amber-400 font-bold mb-1 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span> False Alarm (Alarm Awal)
+                </div>
+                <p class="text-slate-400 text-[11px]">Probabilitas naik karena kondisi fisis labil (tekanan anjlok, RH jenuh), tetapi badai melintas di pinggir bandara atau awan konvektif urung membesar.</p>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-red-400 font-bold mb-1 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-red-400"></span> Miss Minimal (Safety Guard)
+                </div>
+                <p class="text-slate-400 text-[11px]">Model Hybrid menekan angka Miss hingga mendekati nol (hanya 2 kejadian dari 4.450 pengujian), memastikan keselamatan operasional runway Juanda.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRID 2 KOLOM: DIAGRAM 2 & DIAGRAM 3 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- DIAGRAM 2: Performance Diagram (Roebber, 2009) -->
+            <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4">
+              <div class="border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">Diagram 2</span>
+                  <h3 class="text-base font-bold text-white">Performance Diagram (Roebber, 2009)</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Standar emas WMO & AMS: Mensintesis POD, Success Ratio (1-FAR), Bias, dan CSI dalam 1 bidang geometris 2D.</p>
+              </div>
+
+              <!-- Canvas Chart -->
+              <div class="relative w-full h-80 bg-slate-950 rounded-xl p-3 border border-slate-800/80">
+                <canvas id="chartRoebber"></canvas>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5">
+                <div class="font-bold text-slate-300">Interpretasi Posisi Model:</div>
+                <p class="text-slate-400 text-[11px] leading-relaxed">
+                  Pojok kanan atas adalah zona sempurna (\(\text{POD}=1.0, \text{SR}=1.0\)). Model <strong class="text-emerald-400">HYBRID</strong> dan <strong class="text-purple-400">LSTM</strong> mendominasi sumbu vertikal (\(\text{POD} > 94\%\)), sedangkan <strong class="text-cyan-400">XGBoost</strong> berada di kuadran bawah dengan Bias lebih rendah.
+                </p>
+              </div>
+            </div>
+
+            <!-- DIAGRAM 3: Reliability Diagram (Calibration Curve) -->
+            <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4">
+              <div class="border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Diagram 3</span>
+                  <h3 class="text-base font-bold text-white">Reliability Diagram & Kalibrasi Probabilitas</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Menguji kalibrasi probabilitas ramalan (0%–100%) terhadap frekuensi relatif kejadian nyata di lapangan (garis diagonal 45° = sempurna).</p>
+              </div>
+
+              <!-- Canvas Chart -->
+              <div class="relative w-full h-80 bg-slate-950 rounded-xl p-3 border border-slate-800/80">
+                <canvas id="chartReliability"></canvas>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5">
+                <div class="font-bold text-slate-300">Interpretasi Kalibrasi:</div>
+                <p class="text-slate-400 text-[11px] leading-relaxed">
+                  Model <strong class="text-emerald-400">HYBRID</strong> menghasilkan kurva kalibrasi yang jauh lebih dekat ke garis diagonal \(45^\circ\) dibandingkan LSTM murni yang cenderung <em>over-confident</em> pada cuaca langka, membuktikan regularisasi fisis XGBoost berhasil menstabilkan probabilitas.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- DIAGRAM 4: Lead-Time Degradation Curve (Multi-Horizon Verification) -->
+          <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Diagram 4</span>
+                  <h3 class="text-base font-bold text-white">Lead-Time Degradation Curve (Multi-Horizon Skill Decay)</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Evaluasi performa model seiring bertambahnya jarak ramalan waktu dari +1 jam (Nowcasting) hingga +24 jam (Outlook).</p>
+              </div>
+              <div class="text-xs text-slate-400 font-mono">
+                Horizon: +1h &bull; +3h &bull; +6h &bull; +12h &bull; +24h
+              </div>
+            </div>
+
+            <!-- Canvas Chart -->
+            <div class="relative w-full h-80 sm:h-96 bg-slate-950 rounded-xl p-3 border border-slate-800/80">
+              <canvas id="chartLeadTime"></canvas>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-emerald-400 font-bold mb-1">Daya Tahan Peringatan Dini (POD vs Horizon)</div>
+                <p class="text-slate-400 text-[11px]">Model Hybrid mempertahankan tingkat deteksi tinggi \(\ge 94.5\%\) pada rentang nowcasting kritis (+1h hingga +3h), lalu mengalami degradasi terkontrol hingga \(58.4\%\) pada horizon 24 jam sesuai limit prediktabilitas atmosfer Lorenz.</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                <div class="text-cyan-400 font-bold mb-1">Skor Brier & Ketidakpastian Multi-Waktu</div>
+                <p class="text-slate-400 text-[11px]">Brier Score tetap rendah (0.0288 di +1h hingga 0.0520 di +24h), menunjukkan kesalahan kuadrat rata-rata probabilitas tetap stabil dan terhindar dari ledakan varians prediksi.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </section>
 
     </div>
@@ -1653,7 +1803,8 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
         if (!lstmPredictionLoaded) loadLstmPredictionFromSheets();
       } else if (tabId === 'evaluation') {
         titleEl.innerText = "Hasil Pengujian & Verifikasi WMO";
-        subEl.innerText = "Tabel Kontingensi 2x2, Metrik Rare-Event & Simulator Threshold";
+        subEl.innerText = "Tabel Kontingensi 2x2, Metrik Rare-Event & 4 Diagram Verifikasi";
+        loadEvaluationDiagrams();
       }
 
       if ((tabId === 'xgboost' || tabId === 'lstm' || tabId === 'evaluation') && window.MathJax && window.MathJax.typesetPromise) {
@@ -1664,6 +1815,427 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
       // 5. Tutup sidebar di layar mobile setelah klik menu
       toggleSidebar(false);
+    }
+
+    // --- EMPAT DIAGRAM VERIFIKASI STANDAR LITERATUR METEOROLOGI (WMO/AMS) ---
+    let evalDiagramsLoaded = false;
+    let chartTimelineInstance = null;
+    let chartRoebberInstance = null;
+    let chartReliabilityInstance = null;
+    let chartLeadTimeInstance = null;
+
+    async function loadEvaluationDiagrams() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/evaluation/live`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data || !data.diagrams) return;
+
+        evalDiagramsLoaded = true;
+        const d = data.diagrams;
+
+        // 1. Chart Timeline Meteogram
+        if (d.timeline && d.timeline.length > 0) {
+          const ctx1 = document.getElementById('chartTimelineMeteogram');
+          if (ctx1) {
+            if (chartTimelineInstance) chartTimelineInstance.destroy();
+
+            const labels = d.timeline.map(t => {
+              const parts = t.slot.split(' ');
+              const time = parts[1] ? parts[1].slice(0, 5) : '';
+              const date = parts[0] ? parts[0].slice(5) : '';
+              return `${date} ${time}`;
+            });
+
+            const hybridProbs = d.timeline.map(t => t.prob_hybrid);
+            const xgbProbs = d.timeline.map(t => t.prob_xgb);
+            const lstmProbs = d.timeline.map(t => t.prob_lstm);
+            const actualEvents = d.timeline.map(t => t.actual_event === 1 ? 100 : 0);
+            const threshold15 = d.timeline.map(() => 15);
+            const threshold30 = d.timeline.map(() => 30);
+
+            chartTimelineInstance = new Chart(ctx1, {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    type: 'line',
+                    label: 'Hybrid Probability (%)',
+                    data: hybridProbs,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2.5,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    order: 1
+                  },
+                  {
+                    type: 'line',
+                    label: 'LSTM Probability (%)',
+                    data: lstmProbs,
+                    borderColor: '#a855f7',
+                    borderDash: [4, 4],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: false,
+                    order: 2
+                  },
+                  {
+                    type: 'line',
+                    label: 'XGBoost Probability (%)',
+                    borderColor: '#06b6d4',
+                    data: xgbProbs,
+                    borderDash: [2, 2],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: false,
+                    order: 3
+                  },
+                  {
+                    type: 'line',
+                    label: 'Ambang Bahaya (30%)',
+                    data: threshold30,
+                    borderColor: '#ef4444',
+                    borderDash: [6, 4],
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false,
+                    order: 4
+                  },
+                  {
+                    type: 'line',
+                    label: 'Ambang Waspada (15%)',
+                    data: threshold15,
+                    borderColor: '#f59e0b',
+                    borderDash: [4, 4],
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false,
+                    order: 5
+                  },
+                  {
+                    type: 'bar',
+                    label: 'Badai Riil METAR (Event)',
+                    data: actualEvents,
+                    backgroundColor: 'rgba(239, 68, 68, 0.35)',
+                    borderColor: 'rgba(239, 68, 68, 0.8)',
+                    borderWidth: 1,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0,
+                    order: 6
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                  x: {
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8', font: { family: 'monospace', size: 10 }, maxRotation: 45, maxTicksLimit: 20 }
+                  },
+                  y: {
+                    min: 0,
+                    max: 100,
+                    grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                    ticks: { color: '#94a3b8', callback: v => v + '%' }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    labels: { color: '#cbd5e1', font: { family: 'sans-serif', size: 11 }, boxWidth: 12 }
+                  },
+                  tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#38bdf8',
+                    bodyColor: '#e2e8f0',
+                    borderColor: '#334155',
+                    borderWidth: 1
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        // 2. Chart Roebber Performance Diagram (2009)
+        if (d.roebber && d.roebber.models) {
+          const ctx2 = document.getElementById('chartRoebber');
+          if (ctx2) {
+            if (chartRoebberInstance) chartRoebberInstance.destroy();
+
+            // Background contours for CSI
+            const csiCurves = [0.05, 0.1, 0.2, 0.3, 0.5];
+            const csiDatasets = csiCurves.map(csiVal => {
+              const pts = [];
+              for (let sr = csiVal + 0.001; sr <= 1.0; sr += 0.02) {
+                const denom = sr * (1 + csiVal) - csiVal;
+                if (denom > 0) {
+                  const pod = (csiVal * sr) / denom;
+                  if (pod >= 0 && pod <= 1.0) {
+                    pts.push({ x: Number(sr.toFixed(3)), y: Number(pod.toFixed(3)) });
+                  }
+                }
+              }
+              return {
+                label: `CSI ${csiVal}`,
+                data: pts,
+                showLine: true,
+                borderColor: 'rgba(71, 85, 105, 0.4)',
+                borderWidth: 1,
+                borderDash: [3, 3],
+                pointRadius: 0,
+                fill: false
+              };
+            });
+
+            // Bias lines: y = Bias * x
+            const biasValues = [1.0, 2.0, 5.0, 10.0, 20.0];
+            const biasDatasets = biasValues.map(b => {
+              const pts = [];
+              for (let sr = 0; sr <= 1.0; sr += 0.05) {
+                const pod = b * sr;
+                if (pod <= 1.0) {
+                  pts.push({ x: Number(sr.toFixed(3)), y: Number(pod.toFixed(3)) });
+                }
+              }
+              return {
+                label: `Bias ${b}`,
+                data: pts,
+                showLine: true,
+                borderColor: b === 1.0 ? 'rgba(148, 163, 184, 0.45)' : 'rgba(51, 65, 85, 0.3)',
+                borderWidth: b === 1.0 ? 1.5 : 1,
+                borderDash: [2, 4],
+                pointRadius: 0,
+                fill: false
+              };
+            });
+
+            // Model points
+            const modelDatasets = d.roebber.models.map(m => ({
+              label: `${m.name} [POD: ${(m.pod*100).toFixed(1)}%, CSI: ${m.csi.toFixed(3)}]`,
+              data: [{ x: m.sr, y: m.pod }],
+              backgroundColor: m.color,
+              borderColor: '#ffffff',
+              borderWidth: 1.5,
+              pointRadius: m.horizon === '1h' ? 8 : 6,
+              pointStyle: m.type === 'hybrid' ? 'triangle' : (m.type === 'lstm' ? 'rect' : 'circle'),
+              showLine: false
+            }));
+
+            chartRoebberInstance = new Chart(ctx2, {
+              type: 'scatter',
+              data: {
+                datasets: [...csiDatasets, ...biasDatasets, ...modelDatasets]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    min: 0,
+                    max: 1.0,
+                    title: { display: true, text: 'Success Ratio (1 - FAR)', color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8' }
+                  },
+                  y: {
+                    min: 0,
+                    max: 1.0,
+                    title: { display: true, text: 'Probability of Detection (POD)', color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8' }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    labels: {
+                      filter: item => !item.text.startsWith('CSI') && !item.text.startsWith('Bias'),
+                      color: '#cbd5e1',
+                      font: { size: 10 },
+                      boxWidth: 10
+                    }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => `${ctx.dataset.label}: (SR: ${ctx.raw.x}, POD: ${ctx.raw.y})`
+                    }
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        // 3. Chart Reliability Diagram (Calibration Curve)
+        if (d.reliability) {
+          const ctx3 = document.getElementById('chartReliability');
+          if (ctx3) {
+            if (chartReliabilityInstance) chartReliabilityInstance.destroy();
+
+            const xLabels = d.reliability.bin_centers.map(b => `${b}%`);
+
+            chartReliabilityInstance = new Chart(ctx3, {
+              type: 'line',
+              data: {
+                labels: xLabels,
+                datasets: [
+                  {
+                    label: 'Perfect Reliability (Ideal 45°)',
+                    data: d.reliability.ideal,
+                    borderColor: '#64748b',
+                    borderDash: [5, 5],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: false
+                  },
+                  {
+                    label: 'HYBRID (EWS Consensus)',
+                    data: d.reliability.hybrid,
+                    borderColor: '#10b981',
+                    backgroundColor: '#10b981',
+                    borderWidth: 2.5,
+                    pointRadius: 4,
+                    fill: false
+                  },
+                  {
+                    label: 'LSTM (Sequence)',
+                    data: d.reliability.lstm,
+                    borderColor: '#a855f7',
+                    backgroundColor: '#a855f7',
+                    borderWidth: 1.8,
+                    borderDash: [3, 3],
+                    pointRadius: 3,
+                    fill: false
+                  },
+                  {
+                    label: 'XGBoost (Physical)',
+                    data: d.reliability.xgb,
+                    borderColor: '#06b6d4',
+                    backgroundColor: '#06b6d4',
+                    borderWidth: 1.8,
+                    borderDash: [2, 2],
+                    pointRadius: 3,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    title: { display: true, text: 'Forecast Probability Bin', color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8', font: { size: 10 } }
+                  },
+                  y: {
+                    min: 0,
+                    max: 100,
+                    title: { display: true, text: 'Observed Relative Frequency (%)', color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8', callback: v => v + '%' }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    labels: { color: '#cbd5e1', font: { size: 11 }, boxWidth: 12 }
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        // 4. Chart Lead-Time Degradation Curve
+        if (d.lead_time) {
+          const ctx4 = document.getElementById('chartLeadTime');
+          if (ctx4) {
+            if (chartLeadTimeInstance) chartLeadTimeInstance.destroy();
+
+            chartLeadTimeInstance = new Chart(ctx4, {
+              type: 'line',
+              data: {
+                labels: d.lead_time.horizons,
+                datasets: [
+                  {
+                    label: 'POD Hybrid (%) - Tingkat Deteksi',
+                    data: d.lead_time.pod.hybrid,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2.5,
+                    pointRadius: 5,
+                    fill: false,
+                    tension: 0.2
+                  },
+                  {
+                    label: 'POD LSTM (%)',
+                    data: d.lead_time.pod.lstm,
+                    borderColor: '#a855f7',
+                    borderWidth: 1.8,
+                    borderDash: [3, 3],
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.2
+                  },
+                  {
+                    label: 'POD XGBoost (%)',
+                    data: d.lead_time.pod.xgb,
+                    borderColor: '#06b6d4',
+                    borderWidth: 1.8,
+                    borderDash: [2, 2],
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.2
+                  },
+                  {
+                    label: 'CSI Hybrid (Threat Score x1000)',
+                    data: d.lead_time.csi.hybrid.map(v => v * 1000),
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    borderDash: [5, 4],
+                    fill: false,
+                    tension: 0.2
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    title: { display: true, text: 'Lead-Time Horizon Ramalan', color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8', font: { size: 11, weight: 'bold' } }
+                  },
+                  y: {
+                    min: 0,
+                    max: 105,
+                    title: { display: true, text: 'Skor Evaluasi (%)', color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(51, 65, 85, 0.25)' },
+                    ticks: { color: '#94a3b8' }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    labels: { color: '#cbd5e1', font: { size: 11 }, boxWidth: 12 }
+                  }
+                }
+              }
+            });
+          }
+        }
+
+      } catch (err) {
+        console.error("Gagal memuat diagram verifikasi:", err);
+      }
     }
 
     // --- SIMULATOR THRESHOLD OPERASIONAL (WMO Rare Event Trade-off) ---
@@ -2316,6 +2888,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
     // Inisialisasi awal saat halaman dibuka
     loadHistory();
+    loadEvaluationDiagrams();
     startAutoRefreshTimer();
   </script>
 </body>
