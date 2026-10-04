@@ -47,6 +47,53 @@
     .liquid-wave-back {
       animation: waveMoveBack 8s linear infinite;
     }
+
+    /* 3D Gauge Carousel Styles */
+    .carousel-perspective {
+      perspective: 1200px;
+    }
+    .carousel-gauge-item {
+      transition: all 0.6s cubic-bezier(0.34, 1.25, 0.64, 1);
+      transform-style: preserve-3d;
+      will-change: transform, opacity, filter;
+    }
+    .carousel-gauge-item.active {
+      transform: translateX(0) translateZ(100px) scale(1);
+      opacity: 1;
+      z-index: 30;
+      filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.6));
+      pointer-events: auto;
+    }
+    .carousel-gauge-item.prev-1 {
+      transform: translateX(-140px) translateZ(-40px) scale(0.75) rotateY(18deg);
+      opacity: 0.55;
+      z-index: 20;
+      filter: blur(1.5px) brightness(0.65);
+      cursor: pointer;
+    }
+    .carousel-gauge-item.next-1 {
+      transform: translateX(140px) translateZ(-40px) scale(0.75) rotateY(-18deg);
+      opacity: 0.55;
+      z-index: 20;
+      filter: blur(1.5px) brightness(0.65);
+      cursor: pointer;
+    }
+    .carousel-gauge-item.hidden-slot {
+      transform: translateX(0) translateZ(-160px) scale(0.5);
+      opacity: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+    @media (max-width: 640px) {
+      .carousel-gauge-item.prev-1 {
+        transform: translateX(-95px) translateZ(-50px) scale(0.65) rotateY(15deg);
+        opacity: 0.4;
+      }
+      .carousel-gauge-item.next-1 {
+        transform: translateX(95px) translateZ(-50px) scale(0.65) rotateY(-15deg);
+        opacity: 0.4;
+      }
+    }
   </style>
 </head>
 <body class="bg-slate-800 text-slate-200 min-h-screen font-sans antialiased flex flex-col md:flex-row">
@@ -216,82 +263,76 @@
           </div>
         </div>
 
-        <!-- PANEL PERINGATAN DINI HYBRID EWS (1 JAM KE DEPAN) - LIQUID WAVE GAUGE -->
+        <!-- PANEL PERINGATAN DINI HYBRID EWS - 3D LIQUID WAVE CAROUSEL (LOOPING) -->
         <div class="p-5 sm:p-7 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-6 relative overflow-hidden">
-          <!-- Background Glow Effect -->
+          <!-- Ambient Glow Effect Dinamis -->
           <div id="gaugeAmbientGlow" class="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none transition-colors duration-700"></div>
           
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800/80 pb-4 relative z-10">
             <div>
               <div class="flex items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-900/60 text-cyan-300 border border-cyan-500/40">HYBRID EWS ENGINE (1-HOUR NOWCASTING)</span>
-                <span class="text-xs text-slate-400 font-mono">Lead Time: +60 Menit</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-900/60 text-cyan-300 border border-cyan-500/40">HYBRID EWS ENGINE</span>
+                <span id="carouselHorizonTag" class="text-xs text-cyan-400 font-mono font-semibold">Aktif: Horizon +1 Jam</span>
               </div>
-              <h2 class="text-lg sm:text-xl font-bold text-white mt-1">Prakiraan Dini Cuaca Ekstrem +1 Jam (Bandara Juanda - WARR)</h2>
+              <h2 class="text-lg sm:text-xl font-bold text-white mt-1">Peringatan Dini Cuaca Ekstrem Multi-Horizon (Bandara Juanda - WARR)</h2>
             </div>
-            <div id="hybridOverallBadge" class="self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-emerald-950/60 text-emerald-300 border-emerald-500/50 flex items-center gap-2 transition-all duration-500 shadow-sm">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>STATUS: MEMUAT...</span>
+            
+            <div class="flex items-center gap-3">
+              <!-- Carousel Navigation Buttons -->
+              <div class="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800 shadow-sm">
+                <button onclick="prevGauge()" title="Geser ke kiri" class="p-1.5 rounded-lg hover:bg-slate-800 active:scale-95 text-slate-300 hover:text-white transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <span id="carouselCounter" class="text-[11px] font-mono font-bold text-slate-400 px-2">1 / 5</span>
+                <button onclick="nextGauge()" title="Geser ke kanan" class="p-1.5 rounded-lg hover:bg-slate-800 active:scale-95 text-slate-300 hover:text-white transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+
+              <!-- Overall Badge -->
+              <div id="hybridOverallBadge" class="px-3.5 py-1.5 rounded-xl border text-xs font-bold font-mono tracking-wider bg-emerald-950/60 text-emerald-300 border-emerald-500/50 flex items-center gap-2 transition-all duration-500 shadow-sm">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="hybridBadgeText">STATUS: MEMUAT...</span>
+              </div>
             </div>
           </div>
 
-          <!-- Main Hero Section: Liquid Wave Gauge & Detailed Physical Insights -->
+          <!-- Main Carousel & Details Grid -->
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
             
-            <!-- KOLOM KIRI (5 Kolom): Lingkaran Animasi Air (Liquid Wave Ball) -->
-            <div class="lg:col-span-5 flex flex-col items-center justify-center p-3">
-              <div class="relative flex items-center justify-center">
-                <!-- Outer Ring Glow & Track -->
-                <div id="gaugeOuterRing" class="w-56 h-56 sm:w-64 sm:h-64 rounded-full p-2 border-4 border-slate-800 flex items-center justify-center transition-all duration-700 shadow-2xl relative bg-slate-950">
-                  
-                  <!-- Circular Water Container (Masking via overflow-hidden & rounded-full) -->
-                  <div class="w-full h-full rounded-full overflow-hidden relative border border-slate-700/80 bg-slate-900/90 shadow-inner">
-                    
-                    <!-- Water Level Wrapper (Transisi ketinggian dari bawah 0% - 100%) -->
-                    <div id="liquidWaterLevel" class="absolute inset-x-0 bottom-0 transition-all duration-1000 ease-out" style="height: 15%;">
-                      
-                      <!-- Back Wave (Layer belakang lebih transparan) -->
-                      <div id="waveBack" class="liquid-wave-back absolute left-[-100%] -top-7 w-[300%] h-14 opacity-40 transition-colors duration-700">
-                        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-full fill-current">
-                          <path d="M0,0 C150,90 350,-40 500,45 C650,130 900,-30 1200,40 L1200,120 L0,120 Z"></path>
-                        </svg>
-                      </div>
-
-                      <!-- Front Wave (Layer depan) -->
-                      <div id="waveFront" class="liquid-wave-front absolute left-[-100%] -top-6 w-[300%] h-14 opacity-75 transition-colors duration-700">
-                        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-full fill-current">
-                          <path d="M0,0 C150,90 350,-40 500,45 C650,130 900,-30 1200,40 L1200,120 L0,120 Z"></path>
-                        </svg>
-                      </div>
-
-                      <!-- Water Body Fill -->
-                      <div id="liquidWaterBody" class="w-full h-full transition-colors duration-700"></div>
-                    </div>
-
-                    <!-- Inner Overlay Content (Text Persentase di Tengah Lingkaran) -->
-                    <div class="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none drop-shadow-md">
-                      <span class="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-300/90">Peluang Bahaya</span>
-                      <div class="flex items-baseline">
-                        <span id="gaugeProbText" class="text-4xl sm:text-5xl font-mono font-black text-white tracking-tighter">0.0</span>
-                        <span class="text-xl sm:text-2xl font-mono font-bold text-slate-300 ml-0.5">%</span>
-                      </div>
-                      <div id="gaugeLevelBadge" class="mt-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase font-mono tracking-wider shadow-sm transition-all duration-500 bg-emerald-900/80 text-emerald-300 border border-emerald-400/50">
-                        AMAN
-                      </div>
-                    </div>
-
-                  </div>
+            <!-- KOLOM KIRI (6 Kolom): 3D Carousel Stage untuk Liquid Wave Gauges -->
+            <div class="lg:col-span-6 flex flex-col items-center justify-center p-2 relative">
+              
+              <!-- 3D Stage Container (Perspective Viewport) -->
+              <div class="carousel-perspective relative w-full h-72 sm:h-80 flex items-center justify-center select-none overflow-visible">
+                
+                <!-- 5 Horizon Gauges Container -->
+                <div id="gaugeCarouselTrack" class="relative w-60 h-60 sm:w-64 sm:h-64 flex items-center justify-center">
+                  <!-- Injeksi Dinamis oleh JavaScript (1h, 3h, 9h, 18h, 24h) -->
                 </div>
+
+                <!-- Navigation Arrow Overlay (Kiri & Kanan) -->
+                <button onclick="prevGauge()" aria-label="Sebelumnya" class="absolute left-0 sm:left-2 z-40 p-2.5 rounded-full bg-slate-950/70 hover:bg-slate-800 border border-slate-700/80 text-white shadow-xl backdrop-blur-sm transition-all active:scale-90 hover:scale-105">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button onclick="nextGauge()" aria-label="Berikutnya" class="absolute right-0 sm:right-2 z-40 p-2.5 rounded-full bg-slate-950/70 hover:bg-slate-800 border border-slate-700/80 text-white shadow-xl backdrop-blur-sm transition-all active:scale-90 hover:scale-105">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                </button>
               </div>
 
-              <!-- Bar Status Ambang Batas (Aman / Waspada / Bahaya) -->
-              <div class="w-full max-w-xs mt-4 space-y-1.5 text-[11px]">
+              <!-- Horizon Indicator Pills (Quick Clickable Dots / Tabs) -->
+              <div class="flex items-center justify-center gap-2 mt-2" id="carouselPills">
+                <!-- Dijadikan pill tombol klik dinamis -->
+              </div>
+
+              <!-- Bar Status Ambang Batas -->
+              <div class="w-full max-w-xs mt-3.5 space-y-1 text-[11px]">
                 <div class="flex items-center justify-between text-slate-400 font-mono text-[10px]">
                   <span class="text-emerald-400">● Aman (&lt;10%)</span>
                   <span class="text-amber-400">● Waspada (10-30%)</span>
                   <span class="text-red-400">● Bahaya (&gt;30%)</span>
                 </div>
-                <div class="h-2 w-full rounded-full bg-slate-950 border border-slate-800 flex overflow-hidden">
+                <div class="h-1.5 w-full rounded-full bg-slate-950 border border-slate-800 flex overflow-hidden">
                   <div class="h-full bg-emerald-500/80" style="width: 25%;"></div>
                   <div class="h-full bg-amber-500/80" style="width: 35%;"></div>
                   <div class="h-full bg-red-500/80" style="width: 40%;"></div>
@@ -299,20 +340,20 @@
               </div>
             </div>
 
-            <!-- KOLOM KANAN (7 Kolom): Breakdown Model & Rekomendasi Operasional -->
-            <div class="lg:col-span-7 space-y-4">
+            <!-- KOLOM KANAN (6 Kolom): Dynamic Insight Panel untuk Horizon yang Sedang Aktif -->
+            <div class="lg:col-span-6 space-y-4">
               
-              <!-- Target Waktu Prakiraan -->
-              <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <!-- Target Waktu Prakiraan Horizon Aktif -->
+              <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
                 <div>
-                  <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Target Periode Berlaku</div>
+                  <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Target Waktu Berlaku</div>
                   <div id="gaugeTargetWib" class="text-base sm:text-lg font-bold text-cyan-300 font-mono mt-0.5">Memuat waktu...</div>
                   <div id="gaugeTargetUtc" class="text-xs text-slate-500 font-mono">--:-- UTC</div>
                 </div>
                 <div class="sm:text-right">
                   <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Tipe Ensemble</div>
                   <div class="text-xs font-mono text-slate-300 mt-0.5">Weighted Blending (Safety-First)</div>
-                  <div class="text-[11px] text-emerald-400/90 font-mono">Bobot: XGB 55% | LSTM 45%</div>
+                  <div id="gaugeWeightNote" class="text-[11px] text-emerald-400/90 font-mono">Bobot: XGB 55% | LSTM 45%</div>
                 </div>
               </div>
 
@@ -339,7 +380,7 @@
                     <span id="lstmMiniStatus" class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30">AMAN</span>
                   </div>
                   <div class="mt-2 text-2xl font-mono font-extrabold text-white" id="lstmMiniProb">--%</div>
-                  <p class="text-[11px] text-slate-400 mt-1">Spesialis memori kontinuitas pola cuaca dan fluktuasi deret waktu 12 lag.</p>
+                  <p class="text-[11px] text-slate-400 mt-1">Spesialis memori kontinuitas deret waktu dan fluktuasi pola berkala.</p>
                 </div>
               </div>
 
@@ -359,8 +400,8 @@
 
           <!-- Footer Metadata -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
-            <div>
-              <span>Sistem Peringatan Dini Cuaca Bandara Juanda (WARR) · Standar Validasi WMO-No. 485</span>
+            <div class="flex items-center gap-3">
+              <span>● <strong class="text-slate-300">Tips:</strong> Klik panah atau gunakan geser/drag/klik pill untuk navigasi antar horizon.</span>
             </div>
             <div id="hybridLastUpdated" class="font-mono text-slate-500 text-[10px]">Otomatis diperbarui tiap METAR masuk</div>
           </div>
@@ -1570,128 +1611,243 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
       }
     }
 
-    // --- AUTO-TRIGGER & RENDER HYBRID EWS (1-HOUR LIQUID WAVE GAUGE) ---
-    async function loadHybridEws() {
-      const badge = document.getElementById('hybridOverallBadge');
-      const updatedEl = document.getElementById('hybridLastUpdated');
-      const waterLevel = document.getElementById('liquidWaterLevel');
-      const waveFront = document.getElementById('waveFront');
-      const waveBack = document.getElementById('waveBack');
-      const waterBody = document.getElementById('liquidWaterBody');
-      const outerRing = document.getElementById('gaugeOuterRing');
-      const ambientGlow = document.getElementById('gaugeAmbientGlow');
-      const probText = document.getElementById('gaugeProbText');
-      const levelBadge = document.getElementById('gaugeLevelBadge');
+    // --- CAROUSEL 3D STATE & LOGIC UNTUK 5 HORIZON LIQUID GAUGE ---
+    let hybridPredictionsData = [];
+    let currentGaugeIndex = 0; // Mulai dari 0 (1h)
+
+    const WEIGHT_NOTES = {
+      "1h": "Bobot: XGB 55% | LSTM 45%",
+      "3h": "Bobot: XGB 50% | LSTM 50%",
+      "9h": "Bobot: XGB 40% | LSTM 60%",
+      "18h": "Bobot: XGB 35% | LSTM 65%",
+      "24h": "Bobot: XGB 35% | LSTM 65%"
+    };
+
+    function nextGauge() {
+      if (!hybridPredictionsData.length) return;
+      currentGaugeIndex = (currentGaugeIndex + 1) % hybridPredictionsData.length;
+      updateCarouselView();
+    }
+
+    function prevGauge() {
+      if (!hybridPredictionsData.length) return;
+      currentGaugeIndex = (currentGaugeIndex - 1 + hybridPredictionsData.length) % hybridPredictionsData.length;
+      updateCarouselView();
+    }
+
+    function setGaugeIndex(idx) {
+      if (!hybridPredictionsData.length) return;
+      currentGaugeIndex = (idx + hybridPredictionsData.length) % hybridPredictionsData.length;
+      updateCarouselView();
+    }
+
+    function updateCarouselView() {
+      if (!hybridPredictionsData.length) return;
+      const count = hybridPredictionsData.length;
+      const curr = hybridPredictionsData[currentGaugeIndex];
+
+      // Update counter & tags
+      const counterEl = document.getElementById('carouselCounter');
+      if (counterEl) counterEl.innerText = `${currentGaugeIndex + 1} / ${count}`;
+
+      const horizonTag = document.getElementById('carouselHorizonTag');
+      if (horizonTag) horizonTag.innerText = `Aktif: Horizon +${curr.horizon}`;
+
+      // Update 3D classes on gauge cards
+      hybridPredictionsData.forEach((item, idx) => {
+        const el = document.getElementById(`gaugeItem_${idx}`);
+        if (!el) return;
+
+        // Hitung jarak relative berputar (modulo loop)
+        let diff = (idx - currentGaugeIndex + count) % count;
+        if (diff > count / 2) diff -= count;
+
+        el.classList.remove('active', 'prev-1', 'next-1', 'hidden-slot');
+
+        if (diff === 0) {
+          el.classList.add('active');
+        } else if (diff === -1 || (currentGaugeIndex === 0 && idx === count - 1)) {
+          el.classList.add('prev-1');
+        } else if (diff === 1 || (currentGaugeIndex === count - 1 && idx === 0)) {
+          el.classList.add('next-1');
+        } else {
+          el.classList.add('hidden-slot');
+        }
+      });
+
+      // Update pills
+      const pillsContainer = document.getElementById('carouselPills');
+      if (pillsContainer) {
+        pillsContainer.innerHTML = hybridPredictionsData.map((item, idx) => {
+          const isActive = idx === currentGaugeIndex;
+          const statusCol = item.status.color === 'red' ? 'bg-red-500' : (item.status.color === 'amber' ? 'bg-amber-500' : 'bg-emerald-500');
+          return `
+            <button onclick="setGaugeIndex(${idx})" class="px-2.5 py-1 rounded-full text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
+              isActive 
+                ? 'bg-cyan-700 text-white shadow-md scale-105 border border-cyan-400' 
+                : 'bg-slate-950/70 text-slate-400 hover:text-slate-200 border border-slate-800'
+            }">
+              <span class="w-1.5 h-1.5 rounded-full ${statusCol}"></span>
+              <span>+${item.horizon}</span>
+            </button>
+          `;
+        }).join('');
+      }
+
+      // Update Detail Side Panel
       const targetWib = document.getElementById('gaugeTargetWib');
       const targetUtc = document.getElementById('gaugeTargetUtc');
+      const weightNote = document.getElementById('gaugeWeightNote');
       const recommendation = document.getElementById('gaugeRecommendation');
       const xgbMiniProb = document.getElementById('xgbMiniProb');
       const xgbMiniStatus = document.getElementById('xgbMiniStatus');
       const lstmMiniProb = document.getElementById('lstmMiniProb');
       const lstmMiniStatus = document.getElementById('lstmMiniStatus');
+      const ambientGlow = document.getElementById('gaugeAmbientGlow');
+
+      if (targetWib) targetWib.innerText = curr.target_wib || `Horizon +${curr.horizon}`;
+      if (targetUtc) targetUtc.innerText = `${curr.target_utc || ""} (Horizon +${curr.horizon})`;
+      if (weightNote) weightNote.innerText = WEIGHT_NOTES[curr.horizon] || "Bobot: XGB 50% | LSTM 50%";
+      if (recommendation) recommendation.innerText = curr.recommendation || "-";
+
+      if (xgbMiniProb && curr.xgb) {
+        xgbMiniProb.innerText = curr.xgb.probability !== null ? `${(curr.xgb.probability * 100).toFixed(1)}%` : "-";
+        xgbMiniStatus.innerText = curr.xgb.status || "AMAN";
+        xgbMiniStatus.className = `px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+          curr.xgb.color === 'red' ? 'bg-red-950 text-red-400 border border-red-500/40' :
+          curr.xgb.color === 'amber' ? 'bg-amber-950 text-amber-400 border border-amber-500/40' :
+          'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+        }`;
+      }
+
+      if (lstmMiniProb && curr.lstm) {
+        lstmMiniProb.innerText = curr.lstm.probability !== null ? `${(curr.lstm.probability * 100).toFixed(1)}%` : "-";
+        lstmMiniStatus.innerText = curr.lstm.status || "AMAN";
+        lstmMiniStatus.className = `px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+          curr.lstm.color === 'red' ? 'bg-red-950 text-red-400 border border-red-500/40' :
+          curr.lstm.color === 'amber' ? 'bg-amber-950 text-amber-400 border border-amber-500/40' :
+          'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+        }`;
+      }
+
+      // Update ambient glow color
+      if (ambientGlow) {
+        if (curr.status.color === 'red') {
+          ambientGlow.className = "absolute -top-24 -left-24 w-80 h-80 rounded-full bg-red-600/20 blur-3xl pointer-events-none transition-colors duration-700";
+        } else if (curr.status.color === 'amber') {
+          ambientGlow.className = "absolute -top-24 -left-24 w-80 h-80 rounded-full bg-amber-600/20 blur-3xl pointer-events-none transition-colors duration-700";
+        } else {
+          ambientGlow.className = "absolute -top-24 -left-24 w-80 h-80 rounded-full bg-cyan-600/15 blur-3xl pointer-events-none transition-colors duration-700";
+        }
+      }
+    }
+
+    // --- AUTO-TRIGGER & RENDER HYBRID EWS (3D CAROUSEL GAUGE) ---
+    async function loadHybridEws() {
+      const badge = document.getElementById('hybridOverallBadge');
+      const badgeText = document.getElementById('hybridBadgeText');
+      const updatedEl = document.getElementById('hybridLastUpdated');
+      const track = document.getElementById('gaugeCarouselTrack');
 
       try {
         const res = await fetch(`${API_BASE}/api/hybrid/status`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.detail || "Gagal memuat EWS Hybrid");
 
-        // Ambil hasil horizon 1 Jam (+1h)
         const predictions = json.predictions || [];
-        const pred1h = predictions.find(p => p.horizon === "1h") || predictions[0];
-        if (!pred1h) return;
+        if (!predictions.length) return;
+        hybridPredictionsData = predictions;
 
-        const prob = Number(pred1h.hybrid_probability) || 0.0;
-        const probPct = (prob * 100).toFixed(1);
-        const status = pred1h.status || { level: 0, label: "AMAN", color: "green" };
-
-        // 1. Text & Nilai
-        if (probText) probText.innerText = probPct;
-        if (targetWib) targetWib.innerText = pred1h.target_wib || "1 Jam Mendatang";
-        if (targetUtc) targetUtc.innerText = `${pred1h.target_utc || ""} (Lead Time: +60m)`;
-        if (recommendation) recommendation.innerText = pred1h.recommendation || "-";
-
-        // 2. Breakdown XGBoost & LSTM
-        if (xgbMiniProb && pred1h.xgb) {
-          xgbMiniProb.innerText = pred1h.xgb.probability !== null ? `${(pred1h.xgb.probability * 100).toFixed(1)}%` : "-";
-          xgbMiniStatus.innerText = pred1h.xgb.status || "AMAN";
-          xgbMiniStatus.className = `px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-            pred1h.xgb.color === 'red' ? 'bg-red-950 text-red-400 border border-red-500/40' :
-            pred1h.xgb.color === 'amber' ? 'bg-amber-950 text-amber-400 border border-amber-500/40' :
-            'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-          }`;
-        }
-        if (lstmMiniProb && pred1h.lstm) {
-          lstmMiniProb.innerText = pred1h.lstm.probability !== null ? `${(pred1h.lstm.probability * 100).toFixed(1)}%` : "-";
-          lstmMiniStatus.innerText = pred1h.lstm.status || "AMAN";
-          lstmMiniStatus.className = `px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-            pred1h.lstm.color === 'red' ? 'bg-red-950 text-red-400 border border-red-500/40' :
-            pred1h.lstm.color === 'amber' ? 'bg-amber-950 text-amber-400 border border-amber-500/40' :
-            'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-          }`;
-        }
-
-        // 3. Ketinggian Animasi Air (Minimal 16% agar ombak selalu terlihat cantik, Maks 94%)
-        const waveHeight = Math.min(94, Math.max(16, 15 + (prob * 75)));
-        if (waterLevel) waterLevel.style.height = `${waveHeight}%`;
-
-        // 4. Konfigurasi Warna Liquid Berdasarkan Level Risiko (Aman / Waspada / Bahaya)
-        if (status.color === "red") {
-          // Status BAHAYA (Merah menyala)
-          if (badge) {
-            badge.className = "self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-red-950/80 text-red-300 border-red-500/60 flex items-center gap-2 animate-pulse";
-            badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-400"></span><span>STATUS +1H: BAHAYA (LEVEL 2)</span>`;
-          }
-          if (levelBadge) {
-            levelBadge.className = "mt-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase font-mono tracking-wider shadow-sm bg-red-950/90 text-red-300 border border-red-400/60 animate-pulse";
-            levelBadge.innerText = "BAHAYA";
-          }
-          if (outerRing) outerRing.className = "w-56 h-56 sm:w-64 sm:h-64 rounded-full p-2 border-4 border-red-500/60 flex items-center justify-center transition-all duration-700 shadow-2xl relative bg-slate-950 shadow-red-900/30";
-          if (ambientGlow) ambientGlow.className = "absolute -top-24 -left-24 w-80 h-80 rounded-full bg-red-600/20 blur-3xl pointer-events-none transition-colors duration-700";
-          if (waveFront) waveFront.className = "liquid-wave-front absolute left-[-100%] -top-6 w-[300%] h-14 opacity-85 transition-colors duration-700 text-red-500";
-          if (waveBack) waveBack.className = "liquid-wave-back absolute left-[-100%] -top-7 w-[300%] h-14 opacity-50 transition-colors duration-700 text-rose-600";
-          if (waterBody) waterBody.className = "w-full h-full transition-colors duration-700 bg-gradient-to-b from-red-500 to-rose-700";
-
-        } else if (status.color === "amber") {
-          // Status WASPADA (Amber / Kuning oranye)
-          if (badge) {
-            badge.className = "self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-amber-950/70 text-amber-300 border-amber-500/60 flex items-center gap-2";
-            badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span>STATUS +1H: WASPADA (LEVEL 1)</span>`;
-          }
-          if (levelBadge) {
-            levelBadge.className = "mt-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase font-mono tracking-wider shadow-sm bg-amber-950/90 text-amber-300 border border-amber-400/60";
-            levelBadge.innerText = "WASPADA";
-          }
-          if (outerRing) outerRing.className = "w-56 h-56 sm:w-64 sm:h-64 rounded-full p-2 border-4 border-amber-500/60 flex items-center justify-center transition-all duration-700 shadow-2xl relative bg-slate-950 shadow-amber-900/30";
-          if (ambientGlow) ambientGlow.className = "absolute -top-24 -left-24 w-80 h-80 rounded-full bg-amber-600/20 blur-3xl pointer-events-none transition-colors duration-700";
-          if (waveFront) waveFront.className = "liquid-wave-front absolute left-[-100%] -top-6 w-[300%] h-14 opacity-85 transition-colors duration-700 text-amber-500";
-          if (waveBack) waveBack.className = "liquid-wave-back absolute left-[-100%] -top-7 w-[300%] h-14 opacity-50 transition-colors duration-700 text-amber-600";
-          if (waterBody) waterBody.className = "w-full h-full transition-colors duration-700 bg-gradient-to-b from-amber-500 to-orange-700";
-
+        // 1. Overall Badge
+        const overall = json.overall_status || { level: 0, label: "AMAN", color: "green" };
+        if (overall.color === "red") {
+          badge.className = "px-3.5 py-1.5 rounded-xl border text-xs font-bold font-mono tracking-wider bg-red-950/80 text-red-300 border-red-500/60 flex items-center gap-2 animate-pulse";
+          badgeText.innerText = "STATUS EWS: BAHAYA (LEVEL 2)";
+        } else if (overall.color === "amber") {
+          badge.className = "px-3.5 py-1.5 rounded-xl border text-xs font-bold font-mono tracking-wider bg-amber-950/70 text-amber-300 border-amber-500/60 flex items-center gap-2";
+          badgeText.innerText = "STATUS EWS: WASPADA (LEVEL 1)";
         } else {
-          // Status AMAN (Cyan / Emerald biru laut cerah)
-          if (badge) {
-            badge.className = "self-start sm:self-auto px-4 py-2 rounded-xl border text-xs font-bold font-mono tracking-wider bg-emerald-950/60 text-emerald-300 border-emerald-500/50 flex items-center gap-2";
-            badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span><span>STATUS +1H: AMAN (NORMAL)</span>`;
-          }
-          if (levelBadge) {
-            levelBadge.className = "mt-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase font-mono tracking-wider shadow-sm bg-cyan-950/90 text-cyan-300 border border-cyan-400/50";
-            levelBadge.innerText = "AMAN";
-          }
-          if (outerRing) outerRing.className = "w-56 h-56 sm:w-64 sm:h-64 rounded-full p-2 border-4 border-cyan-500/50 flex items-center justify-center transition-all duration-700 shadow-2xl relative bg-slate-950 shadow-cyan-900/30";
-          if (ambientGlow) ambientGlow.className = "absolute -top-24 -left-24 w-80 h-80 rounded-full bg-cyan-600/15 blur-3xl pointer-events-none transition-colors duration-700";
-          if (waveFront) waveFront.className = "liquid-wave-front absolute left-[-100%] -top-6 w-[300%] h-14 opacity-85 transition-colors duration-700 text-cyan-500";
-          if (waveBack) waveBack.className = "liquid-wave-back absolute left-[-100%] -top-7 w-[300%] h-14 opacity-50 transition-colors duration-700 text-teal-600";
-          if (waterBody) waterBody.className = "w-full h-full transition-colors duration-700 bg-gradient-to-b from-cyan-500 to-blue-700";
+          badge.className = "px-3.5 py-1.5 rounded-xl border text-xs font-bold font-mono tracking-wider bg-emerald-950/60 text-emerald-300 border-emerald-500/50 flex items-center gap-2";
+          badgeText.innerText = "STATUS EWS: AMAN (NORMAL)";
         }
+
+        // 2. Render 5 Liquid Wave Ball Elements inside 3D Carousel Track
+        track.innerHTML = predictions.map((p, idx) => {
+          const prob = Number(p.hybrid_probability) || 0.0;
+          const probPct = (prob * 100).toFixed(1);
+          const tone = p.status.color;
+          const waveHeight = Math.min(94, Math.max(16, 15 + (prob * 75)));
+
+          let ringBorder = "border-cyan-500/50 shadow-cyan-900/30";
+          let badgeClass = "bg-cyan-950/90 text-cyan-300 border-cyan-400/50";
+          let waveFrontCol = "text-cyan-500";
+          let waveBackCol = "text-teal-600";
+          let waterBg = "bg-gradient-to-b from-cyan-500 to-blue-700";
+
+          if (tone === "red") {
+            ringBorder = "border-red-500/60 shadow-red-900/30 animate-pulse";
+            badgeClass = "bg-red-950/90 text-red-300 border-red-400/60";
+            waveFrontCol = "text-red-500";
+            waveBackCol = "text-rose-600";
+            waterBg = "bg-gradient-to-b from-red-500 to-rose-700";
+          } else if (tone === "amber") {
+            ringBorder = "border-amber-500/60 shadow-amber-900/30";
+            badgeClass = "bg-amber-950/90 text-amber-300 border-amber-400/60";
+            waveFrontCol = "text-amber-500";
+            waveBackCol = "text-amber-600";
+            waterBg = "bg-gradient-to-b from-amber-500 to-orange-700";
+          }
+
+          return `
+            <div id="gaugeItem_${idx}" onclick="setGaugeIndex(${idx})" class="carousel-gauge-item absolute inset-0 flex items-center justify-center">
+              <div class="w-56 h-56 sm:w-64 sm:h-64 rounded-full p-2 border-4 ${ringBorder} flex items-center justify-center transition-all duration-700 shadow-2xl relative bg-slate-950">
+                <!-- Circular Water Container -->
+                <div class="w-full h-full rounded-full overflow-hidden relative border border-slate-700/80 bg-slate-900/90 shadow-inner">
+                  
+                  <!-- Water Level Wrapper -->
+                  <div class="absolute inset-x-0 bottom-0 transition-all duration-1000 ease-out" style="height: ${waveHeight}%;">
+                    <!-- Back Wave -->
+                    <div class="liquid-wave-back absolute left-[-100%] -top-7 w-[300%] h-14 opacity-50 transition-colors duration-700 ${waveBackCol}">
+                      <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-full fill-current">
+                        <path d="M0,0 C150,90 350,-40 500,45 C650,130 900,-30 1200,40 L1200,120 L0,120 Z"></path>
+                      </svg>
+                    </div>
+                    <!-- Front Wave -->
+                    <div class="liquid-wave-front absolute left-[-100%] -top-6 w-[300%] h-14 opacity-85 transition-colors duration-700 ${waveFrontCol}">
+                      <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-full fill-current">
+                        <path d="M0,0 C150,90 350,-40 500,45 C650,130 900,-30 1200,40 L1200,120 L0,120 Z"></path>
+                      </svg>
+                    </div>
+                    <!-- Water Body Fill -->
+                    <div class="w-full h-full transition-colors duration-700 ${waterBg}"></div>
+                  </div>
+
+                  <!-- Inner Text Overlay -->
+                  <div class="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none drop-shadow-md">
+                    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-200 bg-slate-950/70 px-2 py-0.5 rounded-full mb-0.5">Horizon +${p.horizon}</span>
+                    <div class="flex items-baseline">
+                      <span class="text-4xl sm:text-5xl font-mono font-black text-white tracking-tighter">${probPct}</span>
+                      <span class="text-xl sm:text-2xl font-mono font-bold text-slate-300 ml-0.5">%</span>
+                    </div>
+                    <div class="mt-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase font-mono tracking-wider shadow-sm border ${badgeClass}">
+                      ${p.status.label}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Terapkan posisi awal (index 0 = Horizon 1h)
+        updateCarouselView();
 
         if (updatedEl && json.observed_at_wib) {
           updatedEl.innerText = `Observasi: ${json.observed_at_wib} (${json.source === 'google_sheets' ? 'Google Sheets' : 'Cache Lokal'})`;
         }
       } catch (err) {
         console.warn("EWS Hybrid belum dapat dihitung:", err);
-        if (recommendation) {
-          recommendation.innerText = "Mengumpulkan minimal 12 rekaman observasi berurutan untuk menghitung estimasi EWS Hybrid...";
-        }
       }
     }
 
