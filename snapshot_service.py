@@ -123,40 +123,63 @@ def save_forecast_snapshot(force_new=False):
 
 def parse_metar_adverse_weather(raw_metar):
     """
-    Menganalisis string raw METAR apakah mengandung indikasi cuaca buruk / berbahaya.
-    Mengembalikan (is_adverse, weather_codes_found)
+    Menganalisis string raw METAR secara bertingkat:
+    Level 0: Normal / Aman
+    Level 1: Moderat (Hujan ringan-sedang RA/DZ/SHRA, angin 15-22 kt, awan konvektif CB/TCU) -> Target WASPADA
+    Level 2: Ekstrem / Badai (Badai petir TS/TSRA/SQ, hembusan kencang Gusts >=23kt, visibility <3000m) -> Target SIAGA
     """
     raw = str(raw_metar).upper()
-    adverse_codes = []
+    severity_level = 0
+    event_descriptions = []
 
-    # 1. Hujan & Gerimis
-    if re.search(r"\b(\+|-)?(TS|RA|DZ|SHRA|TSRA|VCTS|SQ)\b", raw):
-        match = re.findall(r"\b(\+|-)?(TS|RA|DZ|SHRA|TSRA|VCTS|SQ)\b", raw)
-        adverse_codes.extend(["".join(m) for m in match])
+    # 1. Cek Badai Petir & Squall (Level 2: Ekstrem)
+    if re.search(r"\b(\+|-)?(TS|TSRA|VCTS|SQ)\b", raw):
+        match = re.findall(r"\b(\+|-)?(TS|TSRA|VCTS|SQ)\b", raw)
+        events = ["".join(m) for m in match]
+        event_descriptions.extend(events)
+        severity_level = max(severity_level, 2)
 
-    # 2. Angin kencang / Gusts (G20KT atau lebih)
+    # 2. Cek Hembusan Angin Kencang / Gusts
     gust_match = re.search(r"G(\d{2,3})KT", raw)
     if gust_match:
-        adverse_codes.append(f"GUST {gust_match.group(1)}KT")
+        gust_kt = int(gust_match.group(1))
+        if gust_kt >= 23:
+            event_descriptions.append(f"GUST {gust_kt}KT")
+            severity_level = max(severity_level, 2)
+        elif gust_kt >= 16:
+            event_descriptions.append(f"GUST {gust_kt}KT")
+            severity_level = max(severity_level, 1)
 
-    # 3. Visibility Rendah (< 5000 meter)
+    # 3. Cek Visibilitas Rendah
     vis_match = re.search(r"\b(\d{4})\b", raw)
     if vis_match:
         vis_val = int(vis_match.group(1))
-        if vis_val < 5000 and vis_val > 0:
-            adverse_codes.append(f"VIS {vis_val}M")
+        if 0 < vis_val < 3000:
+            event_descriptions.append(f"VIS {vis_val}M")
+            severity_level = max(severity_level, 2)
+        elif 3000 <= vis_val < 5000:
+            event_descriptions.append(f"VIS {vis_val}M")
+            severity_level = max(severity_level, 1)
 
-    # 4. Awan konvektif CB (Cumulonimbus)
-    if "CB" in raw or "TCU" in raw:
-        adverse_codes.append("CB CLOUD")
+    # 4. Cek Hujan & Gerimis Biasa (Level 1: Moderat)
+    if re.search(r"\b(\+|-)?(RA|DZ|SHRA)\b", raw) and severity_level < 2:
+        match = re.findall(r"\b(\+|-)?(RA|DZ|SHRA)\b", raw)
+        events = ["".join(m) for m in match]
+        event_descriptions.extend(events)
+        severity_level = max(severity_level, 1)
 
-    is_adverse = len(adverse_codes) > 0
-    return is_adverse, ", ".join(adverse_codes) if adverse_codes else "NORMAL / CLEAR"
+    # 5. Cek Awan Konvektif CB / TCU
+    if ("CB" in raw or "TCU" in raw) and severity_level == 0:
+        event_descriptions.append("CB/TCU CLOUD")
+        severity_level = max(severity_level, 1)
+
+    return severity_level, ", ".join(event_descriptions) if event_descriptions else "NORMAL / CLEAR"
 
 
 def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
     """
-    Membandingkan baris snapshot PENDING terhadap data aktual METAR di Sheet1.
+    Membandingkan baris snapshot PENDING terhadap data aktual METAR di Sheet1
+    menggunakan Verifikasi Bertingkat yang Selaras (Tiered Matching).
     """
     if doc is None:
         doc = _get_spreadsheet_doc()
@@ -170,8 +193,7 @@ def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
     if not metar_records:
         return {"verified_count": 0, "message": "Belum ada rekaman METAR di Sheet1"}
 
-    # Petakan tanggal aktual -> himpunan cuaca buruk yang terjadi di tanggal tersebut
-    # Format waktu METAR biasanya slot_30min atau timestamp atau raw_metar
+    # Petakan tanggal aktual -> himpunan keparahan cuaca yang terjadi di tanggal tersebut
     daily_metar_summary = {}
 
     for record in metar_records:
@@ -184,18 +206,19 @@ def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
             continue
         date_str = date_match.group(1)
 
-        is_adv, adv_desc = parse_metar_adverse_weather(raw_m)
+        sev, sev_desc = parse_metar_adverse_weather(raw_m)
 
         if date_str not in daily_metar_summary:
             daily_metar_summary[date_str] = {
-                "has_adverse": False,
+                "max_severity": 0,
                 "adverse_events": []
             }
 
-        if is_adv:
-            daily_metar_summary[date_str]["has_adverse"] = True
-            if adv_desc not in daily_metar_summary[date_str]["adverse_events"]:
-                daily_metar_summary[date_str]["adverse_events"].append(adv_desc)
+        if sev > daily_metar_summary[date_str]["max_severity"]:
+            daily_metar_summary[date_str]["max_severity"] = sev
+
+        if sev > 0 and sev_desc not in daily_metar_summary[date_str]["adverse_events"]:
+            daily_metar_summary[date_str]["adverse_events"].append(sev_desc)
 
     # Baca baris snapshot
     snapshot_rows = ws_snap.get_all_values()
@@ -222,27 +245,46 @@ def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
         # Hanya verifikasi jika target date sudah tiba/lewat dan ada di data METAR
         if target_date in daily_metar_summary and not is_verified:
             metar_info = daily_metar_summary[target_date]
-            actual_adverse = metar_info["has_adverse"]
+            actual_sev = metar_info["max_severity"]
             predicted_level = int(row[idx_risk_level]) if str(row[idx_risk_level]).isdigit() else 0
-            predicted_adverse = predicted_level >= 1  # Waspada / Siaga
             is_today = (target_date == today_str)
 
-            # Jika target adalah hari ini (masih berlangsung di WIB) dan belum ada cuaca buruk:
-            # JANGAN putuskan False Alarm / Correct Negative sekarang, karena hari belum tuntas (masih ada sisa jam)!
-            if is_today and not actual_adverse:
-                continue
+            # Jika target adalah hari ini (masih berlangsung di WIB):
+            # Hanya putuskan HIT jika cuaca buruk yang diprediksi sudah nyata terkonfirmasi terjadi!
+            # Jika belum terjadi cuaca buruk, tahan status tetap PENDING sampai 23:59 WIB.
+            if is_today:
+                if predicted_level == 1 and actual_sev < 1:
+                    continue  # Masih menunggu sisa jam hari ini untuk potensi hujan
+                elif predicted_level == 2 and actual_sev < 2:
+                    continue  # Masih menunggu sisa jam hari ini untuk potensi badai
 
-            # Kategori Kontingensi 2x2:
-            if predicted_adverse and actual_adverse:
-                ver_category = "HIT"
-            elif not predicted_adverse and not actual_adverse:
-                ver_category = "CORRECT NEGATIVE"
-            elif predicted_adverse and not actual_adverse:
-                ver_category = "FALSE ALARM"
+            # Verifikasi Bertingkat yang Selaras (Tiered Multi-Category Matching):
+            if predicted_level == 1:
+                # Prediksi: WASPADA
+                if actual_sev == 1:
+                    ver_category = "HIT"  # Tepat Waspada: terjadi hujan / konveksi aktif
+                elif actual_sev == 2:
+                    ver_category = "HIT"  # Terjadi badai: peringatan dini waspada sukses mengantisipasi
+                else:
+                    ver_category = "FALSE ALARM"  # Cuaca cerah tenang sepanjang hari
+
+            elif predicted_level == 2:
+                # Prediksi: SIAGA BADAI
+                if actual_sev == 2:
+                    ver_category = "HIT"  # Tepat Siaga: badai petir / gusts terbukti terjadi
+                elif actual_sev == 1:
+                    ver_category = "HIT (OVER-WARNING)"  # Terjadi hujan biasa
+                else:
+                    ver_category = "FALSE ALARM"
+
             else:
-                ver_category = "MISS"
+                # Prediksi: AMAN (Level 0)
+                if actual_sev == 0:
+                    ver_category = "CORRECT NEGATIVE"
+                else:
+                    ver_category = "MISS"
 
-            obs_text = "; ".join(metar_info["adverse_events"]) if metar_info["adverse_events"] else "NORMAL (No Severe Weather)"
+            obs_text = "; ".join(metar_info["adverse_events"]) if metar_info["adverse_events"] else "NORMAL (Clear / No Significant Weather)"
 
             # Update cell via gspread (1-based index)
             row_num = r_idx + 1
