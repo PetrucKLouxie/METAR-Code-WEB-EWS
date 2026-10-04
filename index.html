@@ -1403,8 +1403,9 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
               <div class="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">Hasil Evaluasi Pengujian Lapangan</div>
               <h2 class="text-lg sm:text-xl font-bold text-white mt-1">Performa Multi-Horizon EWS WARR (Test Set 2026)</h2>
             </div>
-            <div class="text-xs text-slate-400 font-mono">
-              Dataset: METAR Bandara Juanda &bull; Evaluasi Walk-Forward
+            <div class="text-xs text-slate-400 font-mono text-right">
+              <div>Sumber: <span class="text-emerald-400 font-semibold">Live Google Sheets</span> (WARR Juanda)</div>
+              <div class="text-[11px] text-slate-500">8.920 Baris Observasi (Apr - Okt 2026) &bull; 4.450 Titik Evaluasi Walk-Forward</div>
             </div>
           </div>
 
@@ -1412,66 +1413,108 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
             <table class="w-full text-left border-collapse text-xs">
               <thead>
                 <tr class="border-b border-slate-800 bg-slate-950/60 font-mono text-slate-400">
-                  <th class="p-3">Horizon Prediksi</th>
-                  <th class="p-3">Lead Time</th>
-                  <th class="p-3 text-emerald-400">POD (Deteksi)</th>
-                  <th class="p-3 text-amber-400">FAR (Alarm Palsu)</th>
-                  <th class="p-3 text-cyan-400">CSI (Threat Score)</th>
-                  <th class="p-3 text-purple-400">PR-AUC</th>
-                  <th class="p-3">Brier Score</th>
-                  <th class="p-3">Status Karakteristik Fisik</th>
+                  <th class="p-3">Model Evaluasi</th>
+                  <th class="p-3">Horizon</th>
+                  <th class="p-3 text-emerald-400">Hit (H)</th>
+                  <th class="p-3 text-red-400">Miss (M)</th>
+                  <th class="p-3 text-amber-400">False Alarm (F)</th>
+                  <th class="p-3 text-slate-400">Correct Neg (C)</th>
+                  <th class="p-3 text-emerald-300 font-bold">POD</th>
+                  <th class="p-3 text-amber-300 font-bold">FAR</th>
+                  <th class="p-3 text-cyan-300 font-bold">CSI</th>
+                  <th class="p-3 text-purple-300 font-bold">HSS</th>
+                  <th class="p-3 text-slate-300">Brier Score</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-800 font-mono">
+                <!-- Horizon +1h: XGBoost -->
                 <tr class="hover:bg-slate-800/40">
-                  <td class="p-3 font-bold text-white">+1h (Nowcasting)</td>
-                  <td class="p-3 text-slate-400">60 Menit</td>
-                  <td class="p-3 font-bold text-emerald-300">65.7%</td>
-                  <td class="p-3 text-amber-300">79.3%</td>
-                  <td class="p-3 font-bold text-cyan-300">0.187</td>
-                  <td class="p-3 text-purple-300">0.232</td>
-                  <td class="p-3 text-slate-300">0.098</td>
-                  <td class="p-3 font-sans text-slate-300 text-[11px]">Sangat tajam membaca penurunan tekanan mendadak (cold pool).</td>
+                  <td class="p-3 font-sans font-bold text-cyan-400">XGBoost (Physical)</td>
+                  <td class="p-3 text-slate-300">+1h (60m)</td>
+                  <td class="p-3 text-emerald-400">30</td>
+                  <td class="p-3 text-red-400">43</td>
+                  <td class="p-3 text-amber-400">342</td>
+                  <td class="p-3 text-slate-400">4.035</td>
+                  <td class="p-3 text-emerald-400 font-bold">41.1%</td>
+                  <td class="p-3 text-amber-400">91.9%</td>
+                  <td class="p-3 text-cyan-400 font-bold">0.072</td>
+                  <td class="p-3 text-purple-400 font-bold">0.110</td>
+                  <td class="p-3 text-slate-300">0.0164</td>
                 </tr>
+                <!-- Horizon +1h: LSTM -->
                 <tr class="hover:bg-slate-800/40">
-                  <td class="p-3 font-bold text-white">+3h (Short-term)</td>
-                  <td class="p-3 text-slate-400">180 Menit</td>
-                  <td class="p-3 font-bold text-emerald-300">67.9%</td>
-                  <td class="p-3 text-amber-300">79.3%</td>
-                  <td class="p-3 font-bold text-cyan-300">0.190</td>
-                  <td class="p-3 text-purple-300">0.228</td>
-                  <td class="p-3 text-slate-300">0.098</td>
-                  <td class="p-3 font-sans text-slate-300 text-[11px]">Optimal menangkap tendensi 3h standar WMO dan adveksi uap air.</td>
+                  <td class="p-3 font-sans font-bold text-emerald-400">LSTM (Sequence)</td>
+                  <td class="p-3 text-slate-300">+1h (60m)</td>
+                  <td class="p-3 text-emerald-400 font-bold">72</td>
+                  <td class="p-3 text-emerald-400 font-bold">1</td>
+                  <td class="p-3 text-amber-400">1.496</td>
+                  <td class="p-3 text-slate-400">2.881</td>
+                  <td class="p-3 text-emerald-300 font-extrabold">98.6%</td>
+                  <td class="p-3 text-amber-400">95.4%</td>
+                  <td class="p-3 text-cyan-400 font-bold">0.046</td>
+                  <td class="p-3 text-purple-400 font-bold">0.058</td>
+                  <td class="p-3 text-slate-300">0.0727</td>
                 </tr>
-                <tr class="hover:bg-slate-800/40">
-                  <td class="p-3 font-bold text-white">+9h (Medium-term)</td>
-                  <td class="p-3 text-slate-400">540 Menit</td>
-                  <td class="p-3 font-bold text-emerald-300">63.8%</td>
-                  <td class="p-3 text-amber-300">80.6%</td>
-                  <td class="p-3 font-bold text-cyan-300">0.174</td>
-                  <td class="p-3 text-purple-300">0.187</td>
-                  <td class="p-3 text-slate-300">0.099</td>
-                  <td class="p-3 font-sans text-slate-300 text-[11px]">Mulai dipengaruhi memori siklus diurnal (siang/malam Selat Madura).</td>
+                <!-- Horizon +1h: HYBRID -->
+                <tr class="hover:bg-slate-800/50 bg-cyan-950/20 border-l-4 border-cyan-400">
+                  <td class="p-3 font-sans font-extrabold text-white flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> HYBRID (EWS Consensus)
+                  </td>
+                  <td class="p-3 font-bold text-cyan-300">+1h (60m)</td>
+                  <td class="p-3 text-emerald-300 font-black">71</td>
+                  <td class="p-3 text-emerald-300 font-black">2</td>
+                  <td class="p-3 text-amber-300 font-bold">1.220</td>
+                  <td class="p-3 text-slate-300">3.157</td>
+                  <td class="p-3 text-emerald-300 font-black text-sm">97.3%</td>
+                  <td class="p-3 text-amber-300 font-bold">94.5%</td>
+                  <td class="p-3 text-cyan-300 font-black text-sm">0.055</td>
+                  <td class="p-3 text-purple-300 font-black text-sm">0.075</td>
+                  <td class="p-3 text-emerald-300 font-bold">0.0288</td>
                 </tr>
-                <tr class="hover:bg-slate-800/40">
-                  <td class="p-3 font-bold text-white">+18h (Extended)</td>
-                  <td class="p-3 text-slate-400">1.080 Menit</td>
-                  <td class="p-3 font-bold text-emerald-300">58.4%</td>
-                  <td class="p-3 text-amber-300">82.8%</td>
-                  <td class="p-3 font-bold text-cyan-300">0.149</td>
-                  <td class="p-3 text-purple-300">0.138</td>
-                  <td class="p-3 text-slate-300">0.098</td>
-                  <td class="p-3 font-sans text-slate-300 text-[11px]">Memprediksi transisi konveksi hari berikutnya via sequence LSTM.</td>
+
+                <!-- Horizon +3h: XGBoost -->
+                <tr class="hover:bg-slate-800/40 border-t-2 border-slate-700/60">
+                  <td class="p-3 font-sans font-bold text-cyan-400">XGBoost (Physical)</td>
+                  <td class="p-3 text-slate-300">+3h (180m)</td>
+                  <td class="p-3 text-emerald-400">36</td>
+                  <td class="p-3 text-red-400">37</td>
+                  <td class="p-3 text-amber-400">342</td>
+                  <td class="p-3 text-slate-400">4.033</td>
+                  <td class="p-3 text-emerald-400 font-bold">49.3%</td>
+                  <td class="p-3 text-amber-400">90.5%</td>
+                  <td class="p-3 text-cyan-400 font-bold">0.087</td>
+                  <td class="p-3 text-purple-400 font-bold">0.136</td>
+                  <td class="p-3 text-slate-300">0.0160</td>
                 </tr>
+                <!-- Horizon +3h: LSTM -->
                 <tr class="hover:bg-slate-800/40">
-                  <td class="p-3 font-bold text-white">+24h (Outlook)</td>
-                  <td class="p-3 text-slate-400">1.440 Menit</td>
-                  <td class="p-3 font-bold text-emerald-300">58.4%</td>
-                  <td class="p-3 text-amber-300">82.8%</td>
-                  <td class="p-3 font-bold text-cyan-300">0.149</td>
-                  <td class="p-3 text-purple-300">0.138</td>
-                  <td class="p-3 text-slate-300">0.098</td>
-                  <td class="p-3 font-sans text-slate-300 text-[11px]">Panduan perancangan rute penerbangan 1 hari ke depan.</td>
+                  <td class="p-3 font-sans font-bold text-emerald-400">LSTM (Sequence)</td>
+                  <td class="p-3 text-slate-300">+3h (180m)</td>
+                  <td class="p-3 text-emerald-400 font-bold">71</td>
+                  <td class="p-3 text-emerald-400 font-bold">2</td>
+                  <td class="p-3 text-amber-400">1.536</td>
+                  <td class="p-3 text-slate-400">2.839</td>
+                  <td class="p-3 text-emerald-300 font-extrabold">97.3%</td>
+                  <td class="p-3 text-amber-400">95.6%</td>
+                  <td class="p-3 text-cyan-400 font-bold">0.044</td>
+                  <td class="p-3 text-purple-400 font-bold">0.055</td>
+                  <td class="p-3 text-slate-300">0.0775</td>
+                </tr>
+                <!-- Horizon +3h: HYBRID -->
+                <tr class="hover:bg-slate-800/50 bg-cyan-950/20 border-l-4 border-cyan-400">
+                  <td class="p-3 font-sans font-extrabold text-white flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> HYBRID (EWS Consensus)
+                  </td>
+                  <td class="p-3 font-bold text-cyan-300">+3h (180m)</td>
+                  <td class="p-3 text-emerald-300 font-black">69</td>
+                  <td class="p-3 text-emerald-300 font-black">4</td>
+                  <td class="p-3 text-amber-300 font-bold">1.300</td>
+                  <td class="p-3 text-slate-300">3.075</td>
+                  <td class="p-3 text-emerald-300 font-black text-sm">94.5%</td>
+                  <td class="p-3 text-amber-300 font-bold">95.0%</td>
+                  <td class="p-3 text-cyan-300 font-black text-sm">0.050</td>
+                  <td class="p-3 text-purple-300 font-black text-sm">0.067</td>
+                  <td class="p-3 text-emerald-300 font-bold">0.0332</td>
                 </tr>
               </tbody>
             </table>

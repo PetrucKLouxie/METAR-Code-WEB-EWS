@@ -666,3 +666,17 @@ def predict_hybrid(payload: dict = None):
     except Exception as error:
         print(f"Hybrid EWS inference failed: {error!r}; cause={error.__cause__!r}", flush=True)
         raise HTTPException(status_code=503, detail="Inferensi Hybrid EWS tidak tersedia saat ini.") from error
+
+
+@app.get("/api/evaluation/live")
+def get_live_evaluation_results():
+    """Mengembalikan hasil pengujian empiris langsung dari Google Sheets (WMO Verification)."""
+    eval_file = os.path.join(BASE_DIR, "public", "eval_results_gsheet.json")
+    if os.path.exists(eval_file):
+        try:
+            with open(eval_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    raise HTTPException(status_code=404, detail="Hasil evaluasi live belum tersedia.")
+
