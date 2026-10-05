@@ -176,49 +176,82 @@ def parse_metar_adverse_weather(raw_metar):
     return severity_level, ", ".join(event_descriptions) if event_descriptions else "NORMAL / CLEAR"
 
 
+def _fetch_recent_metar_summary(ws_metar, recent_rows_count=600):
+    """
+    Mengambil 600 baris terakhir dari Sheet1 (sekitar 12 hari terakhir) secara cepat
+    tanpa membebani Google Sheets dengan membaca 100k+ baris.
+    """
+    max_rows = ws_metar.row_count
+    chunk_size = 1500
+    start_chunk = max(1, max_rows - chunk_size)
+    col_a_chunk = ws_metar.get_values(f"A{start_chunk}:A{max_rows}")
+
+    last_offset = 0
+    for i, r in enumerate(col_a_chunk):
+        if r and r[0].strip():
+            last_offset = i
+    last_row = start_chunk + last_offset
+
+    start_row = max(2, last_row - recent_rows_count + 1)
+    raw_rows = ws_metar.get_values(f"A{start_row}:F{last_row}")
+
+    daily_summary = {}
+    for r in raw_rows:
+        if not r or not r[0]:
+            continue
+        slot = str(r[0])
+        date_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", slot)
+        if not date_match:
+            continue
+        d_str = date_match.group(1)
+
+        # Kolom Sheet1: [slot_30min, wind_speed, dew_point, pressure, temperature, bad_weather]
+        bad_weather_val = str(r[5]).strip() if len(r) >= 6 else "0"
+        is_bad = (bad_weather_val == "1")
+
+        try:
+            w_spd = float(r[1]) if len(r) > 1 and r[1] != "" else 0.0
+        except ValueError:
+            w_spd = 0.0
+
+        if d_str not in daily_summary:
+            daily_summary[d_str] = {
+                "slots_count": 0,
+                "max_severity": 0,
+                "adverse_events": []
+            }
+
+        daily_summary[d_str]["slots_count"] += 1
+
+        if is_bad:
+            daily_summary[d_str]["max_severity"] = max(daily_summary[d_str]["max_severity"], 1)
+            if "BAD WEATHER (Rain / Thunderstorm)" not in daily_summary[d_str]["adverse_events"]:
+                daily_summary[d_str]["adverse_events"].append("BAD WEATHER (Rain / Thunderstorm)")
+
+        if w_spd >= 23:
+            daily_summary[d_str]["max_severity"] = max(daily_summary[d_str]["max_severity"], 2)
+            event_gust = f"HIGH WIND ({w_spd} KT)"
+            if event_gust not in daily_summary[d_str]["adverse_events"]:
+                daily_summary[d_str]["adverse_events"].append(event_gust)
+
+    return daily_summary
+
+
 def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
     """
     Membandingkan baris snapshot PENDING terhadap data aktual METAR di Sheet1
-    menggunakan Verifikasi Bertingkat yang Selaras (Tiered Matching).
+    menggunakan pembacaan cepat (recent rows) dan Verifikasi Bertingkat yang Selaras.
     """
     if doc is None:
         doc = _get_spreadsheet_doc()
     if ws_snap is None:
         ws_snap = _ensure_snapshot_worksheet(doc)
 
-    # Ambil sheet METAR aktual
     ws_metar = doc.worksheet(SHEET_METAR_NAME)
-    metar_records = ws_metar.get_all_records()
+    daily_metar_summary = _fetch_recent_metar_summary(ws_metar)
 
-    if not metar_records:
-        return {"verified_count": 0, "message": "Belum ada rekaman METAR di Sheet1"}
-
-    # Petakan tanggal aktual -> himpunan keparahan cuaca yang terjadi di tanggal tersebut
-    daily_metar_summary = {}
-
-    for record in metar_records:
-        time_val = str(record.get("slot_30min") or record.get("timestamp") or "")
-        raw_m = str(record.get("raw_metar") or "")
-
-        # Ambil tanggal YYYY-MM-DD
-        date_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", time_val)
-        if not date_match:
-            continue
-        date_str = date_match.group(1)
-
-        sev, sev_desc = parse_metar_adverse_weather(raw_m)
-
-        if date_str not in daily_metar_summary:
-            daily_metar_summary[date_str] = {
-                "max_severity": 0,
-                "adverse_events": []
-            }
-
-        if sev > daily_metar_summary[date_str]["max_severity"]:
-            daily_metar_summary[date_str]["max_severity"] = sev
-
-        if sev > 0 and sev_desc not in daily_metar_summary[date_str]["adverse_events"]:
-            daily_metar_summary[date_str]["adverse_events"].append(sev_desc)
+    if not daily_metar_summary:
+        return {"verified_count": 0, "message": "Belum ada rekaman METAR terbaru di Sheet1"}
 
     # Baca baris snapshot
     snapshot_rows = ws_snap.get_all_values()
@@ -236,55 +269,55 @@ def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
     now_wib = datetime.now(timezone(timedelta(hours=7)))
     today_str = now_wib.strftime("%Y-%m-%d")
 
-    # Update baris-baris yang target_date-nya sudah tiba / lampau
     for r_idx in range(1, len(snapshot_rows)):
         row = snapshot_rows[r_idx]
         target_date = row[idx_target_date]
         is_verified = str(row[idx_verified]).upper() == "TRUE"
 
-        # Hanya verifikasi jika target date sudah tiba/lewat dan ada di data METAR
         if target_date in daily_metar_summary and not is_verified:
             metar_info = daily_metar_summary[target_date]
             actual_sev = metar_info["max_severity"]
+            slots_recorded = metar_info["slots_count"]
             predicted_level = int(row[idx_risk_level]) if str(row[idx_risk_level]).isdigit() else 0
             is_today = (target_date == today_str)
 
             # Jika target adalah hari ini (masih berlangsung di WIB):
-            # Hanya putuskan HIT jika cuaca buruk yang diprediksi sudah nyata terkonfirmasi terjadi!
-            # Jika belum terjadi cuaca buruk, tahan status tetap PENDING sampai 23:59 WIB.
+            # Hanya putuskan jika cuaca buruk yang diprediksi sudah nyata terkonfirmasi terjadi.
+            # Jika belum, biarkan PENDING karena hari belum selesai.
             if is_today:
                 if predicted_level == 1 and actual_sev < 1:
-                    continue  # Masih menunggu sisa jam hari ini untuk potensi hujan
+                    continue
                 elif predicted_level == 2 and actual_sev < 2:
-                    continue  # Masih menunggu sisa jam hari ini untuk potensi badai
+                    continue
 
-            # Verifikasi Bertingkat yang Selaras (Tiered Multi-Category Matching):
+            # Jika target_date < today_str (hari kemarin/lampau) atau hari ini sudah terkonfirmasi cuaca buruk:
             if predicted_level == 1:
                 # Prediksi: WASPADA
-                if actual_sev == 1:
-                    ver_category = "HIT"  # Tepat Waspada: terjadi hujan / konveksi aktif
-                elif actual_sev == 2:
-                    ver_category = "HIT"  # Terjadi badai: peringatan dini waspada sukses mengantisipasi
+                if actual_sev >= 1:
+                    ver_category = "HIT"
                 else:
-                    ver_category = "FALSE ALARM"  # Cuaca cerah tenang sepanjang hari
+                    ver_category = "FALSE ALARM"
 
             elif predicted_level == 2:
                 # Prediksi: SIAGA BADAI
                 if actual_sev == 2:
-                    ver_category = "HIT"  # Tepat Siaga: badai petir / gusts terbukti terjadi
+                    ver_category = "HIT"
                 elif actual_sev == 1:
-                    ver_category = "HIT (OVER-WARNING)"  # Terjadi hujan biasa
+                    ver_category = "HIT (OVER-WARNING)"
                 else:
                     ver_category = "FALSE ALARM"
 
             else:
-                # Prediksi: AMAN (Level 0)
+                # Prediksi: AMAN
                 if actual_sev == 0:
                     ver_category = "CORRECT NEGATIVE"
                 else:
                     ver_category = "MISS"
 
-            obs_text = "; ".join(metar_info["adverse_events"]) if metar_info["adverse_events"] else "NORMAL (Clear / No Significant Weather)"
+            if metar_info["adverse_events"]:
+                obs_text = f"{'; '.join(metar_info['adverse_events'])} ({slots_recorded} slots)"
+            else:
+                obs_text = f"NORMAL / CLEAR ({slots_recorded} slots checked)"
 
             # Update cell via gspread (1-based index)
             row_num = r_idx + 1
@@ -300,14 +333,25 @@ def verify_snapshots_with_metar_records(doc=None, ws_snap=None):
     }
 
 
-def get_all_snapshots():
-    """Mengambil seluruh riwayat snapshot dari tab 'Forecast_7Days_Snapshot'."""
+def get_all_snapshots(auto_verify=True):
+    """
+    Mengambil seluruh riwayat snapshot dari tab 'Forecast_7Days_Snapshot'.
+    Secara otomatis menjalankan verifikasi untuk tanggal yang sudah lampau.
+    """
     doc = _get_spreadsheet_doc()
     ws_snap = _ensure_snapshot_worksheet(doc)
+
+    # Otomatis verifikasi tanggal lampau yang belum terverifikasi
+    if auto_verify:
+        try:
+            verify_snapshots_with_metar_records(doc=doc, ws_snap=ws_snap)
+        except Exception as e:
+            print(f"Auto-verification warning: {e}")
+
     records = ws_snap.get_all_records()
 
     # Hitung metrik kontingensi cepat
-    hits = sum(1 for r in records if r.get("verification_result") == "HIT")
+    hits = sum(1 for r in records if "HIT" in str(r.get("verification_result", "")))
     cn = sum(1 for r in records if r.get("verification_result") == "CORRECT NEGATIVE")
     fa = sum(1 for r in records if r.get("verification_result") == "FALSE ALARM")
     miss = sum(1 for r in records if r.get("verification_result") == "MISS")
