@@ -288,7 +288,7 @@
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800/80 pb-4 relative z-10">
             <div>
               <div class="flex items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-900/60 text-cyan-300 border border-cyan-500/40">HYBRID EWS ENGINE</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-900/60 text-cyan-300 border border-cyan-500/40">METAR + ECMWF IFS</span>
                 <span id="carouselHorizonTag" class="text-xs text-cyan-400 font-mono font-semibold">Aktif: Horizon +1 Jam</span>
               </div>
               <h2 class="text-lg sm:text-xl font-bold text-white mt-1">Peringatan Dini Cuaca Ekstrem Multi-Horizon (Bandara Juanda - WARR)</h2>
@@ -345,9 +345,9 @@
               <!-- Bar Status Ambang Batas -->
               <div class="w-full max-w-xs mt-3.5 space-y-1 text-[11px]">
                 <div class="flex items-center justify-between text-slate-400 font-mono text-[10px]">
-                  <span class="text-emerald-400">● Aman (&lt;10%)</span>
-                  <span class="text-amber-400">● Waspada (10-30%)</span>
-                  <span class="text-red-400">● Bahaya (&gt;30%)</span>
+                  <span class="text-emerald-400">● Aman</span>
+                  <span id="legendWaspada" class="text-amber-400">● Waspada</span>
+                  <span id="legendBahaya" class="text-red-400">● Bahaya</span>
                 </div>
                 <div class="h-1.5 w-full rounded-full bg-slate-950 border border-slate-800 flex overflow-hidden">
                   <div class="h-full bg-emerald-500/80" style="width: 25%;"></div>
@@ -368,9 +368,9 @@
                   <div id="gaugeTargetUtc" class="text-xs text-slate-500 font-mono">--:-- UTC</div>
                 </div>
                 <div class="sm:text-right">
-                  <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Tipe Ensemble</div>
-                  <div class="text-xs font-mono text-slate-300 mt-0.5">Weighted Blending (Safety-First)</div>
-                  <div id="gaugeWeightNote" class="text-[11px] text-emerald-400/90 font-mono">Bobot: XGB 55% | LSTM 45%</div>
+                  <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Model Penentu</div>
+                  <div id="gaugeModelName" class="text-xs font-mono text-slate-300 mt-0.5">XGBoost</div>
+                  <div id="gaugeWeightNote" class="text-[11px] text-emerald-400/90 font-mono"></div>
                 </div>
               </div>
 
@@ -380,24 +380,24 @@
                 <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                      <span class="w-2 h-2 rounded-full bg-cyan-400"></span> XGBoost (Tabular)
+                      <span class="w-2 h-2 rounded-full bg-cyan-400"></span> XGBoost (penentu)
                     </span>
                     <span id="xgbMiniStatus" class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30">AMAN</span>
                   </div>
                   <div class="mt-2 text-2xl font-mono font-extrabold text-white" id="xgbMiniProb">--%</div>
-                  <p class="text-[11px] text-slate-400 mt-1">Spesialis mendeteksi tendensi instan tekanan (3h) & depresi titik embun (DPD).</p>
+                  <p class="text-[11px] text-slate-400 mt-1">Memakai METAR, musim, riwayat badai, dan prakiraan ECMWF IFS.</p>
                 </div>
 
                 <!-- Card LSTM (Deret Waktu) -->
                 <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 transition">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                      <span class="w-2 h-2 rounded-full bg-emerald-400"></span> LSTM (Sequence)
+                      <span class="w-2 h-2 rounded-full bg-emerald-400"></span> LSTM (pembanding)
                     </span>
                     <span id="lstmMiniStatus" class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30">AMAN</span>
                   </div>
                   <div class="mt-2 text-2xl font-mono font-extrabold text-white" id="lstmMiniProb">--%</div>
-                  <p class="text-[11px] text-slate-400 mt-1">Spesialis memori kontinuitas deret waktu dan fluktuasi pola berkala.</p>
+                  <p class="text-[11px] text-slate-400 mt-1">Ditampilkan sebagai pembanding; tidak menentukan status.</p>
                 </div>
               </div>
 
@@ -1794,7 +1794,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
               </div>
               <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Prospek Cuaca Ekstrem 7 Hari Kedepan</h2>
               <p class="text-xs md:text-sm text-slate-300 leading-relaxed">
-                Prakiraan numerik global (via Open-Meteo) untuk Juanda, diberi skor risiko dengan aturan ambang. Skor ini bukan probabilitas terkalibrasi; model XGBoost dan LSTM hanya berlaku sampai 24 jam.
+                Prakiraan ECMWF IFS (via Open-Meteo) untuk Juanda, diberi skor risiko dengan aturan ambang. Skor ini bukan probabilitas terkalibrasi; model XGBoost dan LSTM hanya berlaku sampai 24 jam.
               </p>
             </div>
             <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
@@ -1868,7 +1868,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
           <div id="weeklyDaysGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <!-- Kartu 7 hari akan di-render secara dinamis oleh JavaScript -->
             <div class="col-span-full p-8 text-center text-slate-500 font-mono text-xs bg-slate-900 rounded-xl border border-slate-800">
-              <span class="inline-block animate-spin mr-2">⟳</span> Menghubungkan ke ECMWF/GFS & Model Hybrid Juanda...
+              <span class="inline-block animate-spin mr-2">⟳</span> Mengambil prakiraan ECMWF IFS...
             </div>
           </div>
         </div>
@@ -2014,9 +2014,9 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-400 leading-relaxed">
             <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
-              <div class="font-bold text-slate-200">1. Mengapa Butuh Data ECMWF/GFS?</div>
+              <div class="font-bold text-slate-200">1. Mengapa Butuh Data ECMWF IFS?</div>
               <p class="text-[11px]">
-                Model Machine Learning lokal stasiun tunggal terbatas pada rentang waktu nowcasting (\(\le 24\) jam) karena efek akumulasi galat dan ketiadaan sinyal fluida atmosfer masa depan. ECMWF/GFS memberikan proyeksi fluida 3D global hingga 7 hari kedepan.
+                Model Machine Learning lokal stasiun tunggal terbatas pada rentang waktu nowcasting (\(\le 24\) jam) karena efek akumulasi galat dan ketiadaan sinyal fluida atmosfer masa depan. ECMWF IFS memberikan proyeksi fluida 3D global hingga 7 hari kedepan.
               </p>
             </div>
             <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
@@ -2100,7 +2100,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
         subEl.innerText = "Tabel Kontingensi 2x2, Metrik Rare-Event & 4 Diagram Verifikasi";
       } else if (tabId === 'weekly') {
         titleEl.innerText = "Prospek Cuaca 7 Hari";
-        subEl.innerText = "Prakiraan numerik global dengan skor risiko berbasis aturan";
+        subEl.innerText = "Prakiraan ECMWF IFS dengan skor risiko berbasis aturan";
         if (!weeklyForecastLoaded) loadWeeklyForecast();
       }
 
@@ -2505,14 +2505,6 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
     let hybridPredictionsData = [];
     let currentGaugeIndex = 0; // Mulai dari 0 (1h)
 
-    const WEIGHT_NOTES = {
-      "1h": "Bobot: XGB 55% | LSTM 45%",
-      "3h": "Bobot: XGB 50% | LSTM 50%",
-      "9h": "Bobot: XGB 40% | LSTM 60%",
-      "18h": "Bobot: XGB 35% | LSTM 65%",
-      "24h": "Bobot: XGB 35% | LSTM 65%"
-    };
-
     function nextGauge() {
       if (!hybridPredictionsData.length) return;
       currentGaugeIndex = (currentGaugeIndex + 1) % hybridPredictionsData.length;
@@ -2597,7 +2589,16 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
       if (targetWib) targetWib.innerText = curr.target_wib || `Horizon +${curr.horizon}`;
       if (targetUtc) targetUtc.innerText = `${curr.target_utc || ""} (Horizon +${curr.horizon})`;
-      if (weightNote) weightNote.innerText = WEIGHT_NOTES[curr.horizon] || "Bobot: XGB 50% | LSTM 50%";
+      if (weightNote) weightNote.innerText = ['18h', '24h'].includes(curr.horizon)
+        ? 'Horizon jauh: setara kecenderungan musiman' : '';
+      const modelName = document.getElementById('gaugeModelName');
+      if (modelName) modelName.innerText = `XGBoost, ${curr.model || ''}`;
+      const pct = v => (v * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 });
+      const legW = document.getElementById('legendWaspada'), legB = document.getElementById('legendBahaya');
+      if (curr.thresholds && legW && legB) {
+        legW.innerText = `● Waspada (≥${pct(curr.thresholds.th_waspada)}%)`;
+        legB.innerText = `● Bahaya (≥${pct(curr.thresholds.th_bahaya)}%)`;
+      }
       if (recommendation) recommendation.innerText = curr.recommendation || "-";
 
       if (xgbMiniProb && curr.xgb) {
@@ -2640,7 +2641,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
       const track = document.getElementById('gaugeCarouselTrack');
 
       try {
-        const res = await fetch(`${API_BASE}/api/hybrid/status`);
+        const res = await fetch(`${API_BASE}/api/ews/status`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.detail || "Gagal memuat EWS Hybrid");
 
@@ -2775,7 +2776,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
       if (btn) btn.disabled = true;
       if (icon) icon.classList.add('animate-spin');
-      if (lastUpdatedEl) lastUpdatedEl.innerText = "Sinkronisasi: Mengunduh data ECMWF/GFS...";
+      if (lastUpdatedEl) lastUpdatedEl.innerText = "Sinkronisasi: Mengunduh data ECMWF IFS...";
 
       try {
         const url = `${API_BASE}/api/forecast-7days${forceRefresh ? '?refresh=true' : ''}`;

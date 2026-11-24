@@ -20,6 +20,7 @@ from lstm_service import (
     predict_lstm_from_raw_metar_list,
 )
 from hybrid_service import compute_hybrid_predictions, predict_hybrid_from_records
+import ews_service
 from weekly_nwp_service import compute_ai_nwp_weekly_forecast
 
 try:
@@ -616,6 +617,7 @@ def api_status():
         "endpoints": {
             "latest": "/api/metar/latest",
             "history": "/api/metar/history",
+            "ews": "/api/ews/status",
             "xgboost_predict": "/api/xgboost/predict",
             "docs": "/docs"
         },
@@ -757,6 +759,45 @@ def predict_hybrid(payload: dict = None):
     except Exception as error:
         print(f"Hybrid EWS inference failed: {error!r}; cause={error.__cause__!r}", flush=True)
         raise HTTPException(status_code=503, detail="Inferensi Hybrid EWS tidak tersedia saat ini.") from error
+
+
+@app.get("/api/ews/status")
+def ews_status():
+    """
+    Peringatan 1-24 jam: METAR + ECMWF IFS (cadangan: METAR saja).
+    LSTM lama disertakan sebagai pembanding dan tidak menentukan status.
+    """
+    try:
+        try:
+            # 48 jam riwayat untuk fitur badai terkini
+            records, _ = get_recent_rows_from_sheet(get_sheet(), count=100)
+            source = "google_sheets"
+        except Exception:
+            records = load_local_history()
+            source = "local_storage"
+        result = ews_service.predict(records)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        print(f"EWS inference failed: {error!r}", flush=True)
+        raise HTTPException(status_code=503, detail="Peringatan dini tidak tersedia saat ini.") from error
+
+    lstm = {}
+    try:
+        lstm = {p["horizon"]: p for p in predict_lstm_from_gsheet(records[-20:])["predictions"]}
+    except Exception as error:
+        print(f"LSTM pembanding tidak tersedia: {error!r}", flush=True)
+    for p in result["predictions"]:
+        p["hybrid_probability"] = round(p["probability"], 4)
+        p["xgb"] = {"probability": p["hybrid_probability"], "status": p["status"]["label"], "color": p["status"]["color"]}
+        other = lstm.get(p["horizon"])
+        p["lstm"] = {
+            "probability": round(other["probability"], 4) if other else None,
+            "status": other["status"]["label"] if other else "N/A",
+            "color": other["status"]["color"] if other else "gray",
+        }
+    result["source"] = source
+    return result
 
 
 @app.get("/api/evaluation/live")

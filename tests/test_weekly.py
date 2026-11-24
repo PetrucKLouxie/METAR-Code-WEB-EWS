@@ -7,6 +7,7 @@ import time
 import unittest
 from pathlib import Path
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 from support import frozen
 import weekly_nwp_service as weekly
@@ -25,6 +26,13 @@ def nwp(days):
         "daily": {"time": days, "weather_code": [1] * len(days),
                   "precipitation_probability_max": [10 + i for i in range(len(days))]},
     }
+
+
+def weekly_default_cache():
+    spec = importlib.util.spec_from_file_location("weekly_fresh", weekly.__file__)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.CACHE_FILE
 
 
 class WeeklyCacheTest(unittest.TestCase):
@@ -67,11 +75,23 @@ class WeeklyCacheTest(unittest.TestCase):
         self.store(3 * 3600, ["2026-11-25"])
         self.assertIsNone(re.search(r"\b(ML|Hybrid|Machine Learning)\b", self.compute()["source"], re.I))
 
+    def test_request_names_the_model_explicitly(self):
+        # Tanpa nama model, Open-Meteo bebas mengganti modelnya tanpa pemberitahuan.
+        with mock.patch.object(weekly.urllib.request, "urlopen", side_effect=OSError("offline")) as call:
+            with self.assertRaises(RuntimeError):
+                weekly.fetch_open_meteo_raw(force_refresh=True)
+        query = parse_qs(urlsplit(call.call_args.args[0].full_url).query)
+        self.assertEqual(query["models"], ["ecmwf_ifs"])
+
+    def test_source_names_the_model(self):
+        self.store(3 * 3600, ["2026-11-25"])
+        self.assertIn("ECMWF IFS", self.compute()["source"])
+
+    def test_cache_of_another_model_is_not_reused(self):
+        self.assertIn("ecmwf_ifs", Path(weekly_default_cache()).name)
+
     def test_default_cache_is_outside_the_published_folder(self):
-        spec = importlib.util.spec_from_file_location("weekly_fresh", weekly.__file__)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        self.assertNotIn("public", Path(module.CACHE_FILE).parts)
+        self.assertNotIn("public", Path(weekly_default_cache()).parts)
 
 
 if __name__ == "__main__":

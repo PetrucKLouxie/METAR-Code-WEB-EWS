@@ -1,6 +1,6 @@
 """
 Layanan Prospek Cuaca 7 Hari
-Mengambil prakiraan numerik global (via Open-Meteo) untuk Bandara Internasional
+Mengambil prakiraan ECMWF IFS (via Open-Meteo) untuk Bandara Internasional
 Juanda (WARR, Surabaya: Lat -7.3798, Lon 112.7876) lalu memberi skor risiko 0-100
 dengan aturan ambang. Skor ini bukan probabilitas terkalibrasi, dan model
 XGBoost/LSTM tidak dipakai di sini karena hanya berlaku sampai 24 jam.
@@ -14,7 +14,9 @@ import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-CACHE_FILE = Path(tempfile.gettempdir()) / "warr_weekly_nwp.json"
+# Nama model disebut eksplisit: tanpa ini Open-Meteo bebas menggantinya tanpa pemberitahuan.
+NWP_MODEL = "ecmwf_ifs"
+CACHE_FILE = Path(tempfile.gettempdir()) / f"warr_weekly_{NWP_MODEL}.json"
 CACHE_TTL_SECONDS = 1800  # 30 menit
 MAX_STALE_SECONDS = 24 * 3600  # batas cache lama saat Open-Meteo tidak dapat dihubungi
 WIB = timezone(timedelta(hours=7))
@@ -82,7 +84,7 @@ def fetch_open_meteo_raw(force_refresh=False):
         f"wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,weather_code,cape"
         f"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
         f"precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max"
-        f"&wind_speed_unit=kn&timezone=Asia%2FJakarta&forecast_days=7"
+        f"&wind_speed_unit=kn&timezone=Asia%2FJakarta&forecast_days=7&models={NWP_MODEL}"
     )
 
     try:
@@ -340,7 +342,7 @@ def compute_ai_nwp_weekly_forecast(force_refresh=False):
         "status": "success",
         "station": "WARR (Bandara Internasional Juanda, Surabaya)",
         "coordinates": {"latitude": LAT_JUANDA, "longitude": LON_JUANDA},
-        "source": "Open-Meteo (NWP global) + skor aturan",
+        "source": "ECMWF IFS (via Open-Meteo) + skor aturan",
         "generated_at_wib": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB"),
         "cached": is_cached,
         "stale": is_stale,
