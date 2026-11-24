@@ -281,7 +281,8 @@ def get_all_snapshots(auto_verify=True):
         except Exception as e:
             print(f"Auto-verification warning: {e}")
 
-    records = ws_snap.get_all_records()
+    # UNFORMATTED: pada Sheet berbahasa Indonesia "21,6" terbaca 216 bila diambil sebagai teks.
+    records = ws_snap.get_all_records(value_render_option="UNFORMATTED_VALUE")
 
     # Hitung metrik kontingensi cepat
     hits = sum(1 for r in records if "HIT" in str(r.get("verification_result", "")))

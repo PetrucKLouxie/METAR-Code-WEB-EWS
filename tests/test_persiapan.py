@@ -164,7 +164,7 @@ class MapTest(unittest.TestCase):
             self.assertIn("models=ecmwf_ifs", call.call_args.args[0].full_url)
 
     def test_geography_file_is_published(self):
-        geo = json.loads((Path(app.BASE_DIR) / "public" / "geo.json").read_text(encoding="utf-8"))
+        geo = json.loads((Path(app.BASE_DIR) / "public" / "assets" / "geo.json").read_text(encoding="utf-8"))
         self.assertEqual(geo["bbox"], map_service.BBOX)
         self.assertEqual(len(geo["elev"]["v"]), geo["elev"]["nx"] * geo["elev"]["ny"])
         self.assertTrue(geo["land"])

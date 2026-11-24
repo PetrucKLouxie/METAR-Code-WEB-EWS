@@ -1,0 +1,38 @@
+"""Halaman web: berkas yang dirujuk ada, dan teks lama tidak kembali."""
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+ASSETS = ROOT / "public" / "assets"
+
+
+class PageTest(unittest.TestCase):
+    def setUp(self):
+        self.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.scripts = {p.name: p.read_text(encoding="utf-8") for p in ASSETS.glob("*.js")}
+
+    def test_referenced_files_exist(self):
+        paths = re.findall(r'(?:src|href)="/(assets/[^"]+)"', self.html)
+        self.assertGreaterEqual(len(paths), 8)
+        for path in paths:
+            self.assertTrue((ROOT / "public" / path).is_file(), path)
+
+    def test_every_element_id_used_by_scripts_exists(self):
+        everything = self.html + "".join(self.scripts.values())
+        defined = set(re.findall(r'id="([\w-]+)"', everything))
+        for name, code in self.scripts.items():
+            for used in re.findall(r"\$\('([\w-]+)'\)", code):
+                self.assertIn(used, defined | {"p-"}, f"{name}: {used}")
+
+    def test_not_about_airport_operations(self):
+        text = (self.html + "".join(self.scripts.values())).lower()
+        for word in ("runway", "landasan", "penerbangan", "holding", "ews engine", "ai-nwp"):
+            self.assertNotIn(word, text)
+
+    def test_no_unsafe_claims_about_the_seven_day_score(self):
+        self.assertIn("bukan peluang", self.scripts["prospek.js"])
+
+
+if __name__ == "__main__":
+    unittest.main()

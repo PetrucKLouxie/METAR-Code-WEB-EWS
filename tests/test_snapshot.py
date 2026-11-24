@@ -119,6 +119,8 @@ class VerifyWriteTest(unittest.TestCase):
                 mock.patch.object(snap, "_ensure_snapshot_worksheet", return_value=ws):
             data = snap.get_all_snapshots(auto_verify=False)
         self.assertEqual((data["total_verified"], data["metrics"]["unverifiable"]), (3, 1))
+        # Sheet berbahasa Indonesia menampilkan 21,6; sebagai teks terbaca 216.
+        self.assertEqual(ws.get_all_records.call_args.kwargs["value_render_option"], "UNFORMATTED_VALUE")
 
     def test_repeated_reads_do_not_verify_every_time(self):
         ws = mock.Mock()
