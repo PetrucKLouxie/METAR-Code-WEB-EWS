@@ -1788,13 +1788,13 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
               <div class="flex items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                  AI-NWP EARLY WARNING SYSTEM
+                  PROSPEK NUMERIK 7 HARI
                 </span>
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-800 border border-slate-700">WARR / SUB &bull; Juanda</span>
               </div>
               <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Prospek Cuaca Ekstrem 7 Hari Kedepan</h2>
               <p class="text-xs md:text-sm text-slate-300 leading-relaxed">
-                Mengintegrasikan pemodelan fluida atmosfer global <strong>ECMWF & GFS</strong> dengan engine <strong>Pure-Math ML Hybrid (XGBoost + LSTM)</strong> lokal Juanda untuk memitigasi keterbatasan <em>lead time</em> 24 jam dan mendeteksi potensi cuaca berbahaya hingga 1 minggu ke depan.
+                Prakiraan numerik global (via Open-Meteo) untuk Juanda, diberi skor risiko dengan aturan ambang. Skor ini bukan probabilitas terkalibrasi; model XGBoost dan LSTM hanya berlaku sampai 24 jam.
               </p>
             </div>
             <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
@@ -1903,7 +1903,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
           <div class="space-y-2">
             <div class="flex items-center justify-between text-xs">
               <span class="font-bold text-slate-300">Profil Dinamika 24 Jam (Jam 00:00 - 23:00 WIB)</span>
-              <span class="font-mono text-slate-500 text-[11px]">Probabilitas Terkalibrasi Machine Learning</span>
+              <span class="font-mono text-slate-500 text-[11px]">Skor risiko berbasis aturan (0-100)</span>
             </div>
 
             <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
@@ -1918,7 +1918,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
                     <th class="py-2.5 px-3">GUSTS</th>
                     <th class="py-2.5 px-3">HUJAN (MM)</th>
                     <th class="py-2.5 px-3">CAPE (J/KG)</th>
-                    <th class="py-2.5 px-3 text-right">RISIKO AI</th>
+                    <th class="py-2.5 px-3 text-right">SKOR RISIKO</th>
                     <th class="py-2.5 px-3 text-center">STATUS</th>
                   </tr>
                 </thead>
@@ -2010,7 +2010,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span>Metodologi Ilmiah: Integrasi AI-NWP Post-Processing (WMO Best Practice)</span>
+            <span>Metodologi: Prakiraan Numerik dan Skor Aturan</span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-400 leading-relaxed">
             <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
@@ -2020,9 +2020,9 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
               </p>
             </div>
             <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
-              <div class="font-bold text-slate-200">2. Mengapa Perlu Dikoreksi Model Hybrid?</div>
+              <div class="font-bold text-slate-200">2. Bagaimana Skor Risiko Dihitung?</div>
               <p class="text-[11px]">
-                Model numerik global memiliki resolusi spasial makro (9–25 km) sehingga sering bias meremehkan (*underforecast*) badai petir mendadak di runway Juanda. Engine XGBoost + LSTM mengoreksi bias tersebut berdasarkan hubungan mikroklimat pesisir Selat Madura.
+                Skor menjumlahkan faktor CAPE, hujan, gust, kode cuaca, penurunan tekanan, kelembapan, dan jam siang-sore. Bobotnya ditetapkan manual dan belum dikalibrasi terhadap observasi Juanda.
               </p>
             </div>
             <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
@@ -2099,8 +2099,8 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
         titleEl.innerText = "Hasil Pengujian & Verifikasi WMO";
         subEl.innerText = "Tabel Kontingensi 2x2, Metrik Rare-Event & 4 Diagram Verifikasi";
       } else if (tabId === 'weekly') {
-        titleEl.innerText = "Prospek Cuaca 7 Hari (AI-NWP)";
-        subEl.innerText = "Integrasi Model ECMWF/GFS & Machine Learning Hybrid Juanda";
+        titleEl.innerText = "Prospek Cuaca 7 Hari";
+        subEl.innerText = "Prakiraan numerik global dengan skor risiko berbasis aturan";
         if (!weeklyForecastLoaded) loadWeeklyForecast();
       }
 
@@ -2789,7 +2789,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
         loadSnapshotHistory();
 
         if (lastUpdatedEl) {
-          lastUpdatedEl.innerText = `Update: ${data.generated_at_wib || 'Baru saja'}${data.cached ? ' (Cache)' : ' (Live)'}`;
+          lastUpdatedEl.innerText = `Update: ${data.generated_at_wib || 'Baru saja'}${data.stale ? ' (Data lama: sumber tidak dapat dihubungi)' : (data.cached ? ' (Cache)' : ' (Live)')}`;
         }
       } catch (err) {
         console.error("Gagal memuat prospek cuaca 7 hari:", err);
@@ -2887,7 +2887,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
               <div class="pt-2 border-t border-slate-800/80 space-y-1.5">
                 <div class="flex items-center justify-between text-[11px] font-mono">
-                  <span class="text-slate-400 text-[10px]">Risiko AI</span>
+                  <span class="text-slate-400 text-[10px]">Skor risiko</span>
                   <span class="font-bold ${day.risk_color === 'red' ? 'text-rose-400' : (day.risk_color === 'amber' ? 'text-amber-400' : 'text-emerald-400')}">${day.max_risk_prob}%</span>
                 </div>
                 <div class="flex items-center justify-between text-[10px] font-mono text-slate-400">
@@ -2980,6 +2980,18 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
     }
 
     // --- FITUR SNAPSHOT & VERIFIKASI GOOGLE SHEETS ---
+    // Endpoint yang menulis ke Sheet memerlukan token admin; disimpan selama tab terbuka.
+    async function adminPost(url) {
+      let token = sessionStorage.getItem('adminToken') || prompt('Token admin:') || '';
+      const res = await fetch(url, { method: "POST", headers: { "X-Admin-Token": token } });
+      if (res.ok) sessionStorage.setItem('adminToken', token);
+      else sessionStorage.removeItem('adminToken');
+      if (res.status === 401) throw new Error("Token admin salah atau belum diisi");
+      if (res.status === 503) throw new Error("ADMIN_TOKEN belum diatur di server");
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return res.json();
+    }
+
     async function saveSnapshotToGSheet(force = false) {
       const btn = document.getElementById('btnSaveSnapshot');
       const icon = document.getElementById('iconSaveSnapshot');
@@ -2991,9 +3003,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
       try {
         const url = `${API_BASE}/api/forecast-7days/snapshot${force ? '?force=true' : ''}`;
-        const res = await fetch(url, { method: "POST" });
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-        const data = await res.json();
+        const data = await adminPost(url);
 
         if (statusMsg) {
           statusMsg.innerText = `Sukses menyimpan ${data.saved_count} snapshot baru ke tab 'Forecast_7Days_Snapshot'!`;
@@ -3092,9 +3102,7 @@ METAR WARR 031230Z 27008KT 9999 SCT020 28/24 Q1008 NOSIG</textarea>
 
       try {
         const url = `${API_BASE}/api/forecast-7days/verify`;
-        const res = await fetch(url, { method: "POST" });
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-        const data = await res.json();
+        const data = await adminPost(url);
 
         if (statusMsg) {
           statusMsg.innerText = `Verifikasi selesai: ${data.verified_count} tanggal baru berhasil diverifikasi!`;

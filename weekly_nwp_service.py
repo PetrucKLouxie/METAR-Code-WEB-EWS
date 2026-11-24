@@ -1,21 +1,23 @@
 """
-Layanan Prospek Cuaca 7 Hari (AI-NWP Early Warning System)
-Mengintegrasikan model global ECMWF / GFS (via Open-Meteo) dengan
-Engine Machine Learning Hybrid (XGBoost Pure-Math & LSTM Pure-Math)
-untuk Bandara Internasional Juanda (WARR, Surabaya: Lat -7.3798, Lon 112.7876).
+Layanan Prospek Cuaca 7 Hari
+Mengambil prakiraan numerik global (via Open-Meteo) untuk Bandara Internasional
+Juanda (WARR, Surabaya: Lat -7.3798, Lon 112.7876) lalu memberi skor risiko 0-100
+dengan aturan ambang. Skor ini bukan probabilitas terkalibrasi, dan model
+XGBoost/LSTM tidak dipakai di sini karena hanya berlaku sampai 24 jam.
 """
 
-import os
 import json
 import math
+import tempfile
 import time
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-CACHE_FILE = BASE_DIR / "public" / "cache_weekly_nwp.json"
+CACHE_FILE = Path(tempfile.gettempdir()) / "warr_weekly_nwp.json"
 CACHE_TTL_SECONDS = 1800  # 30 menit
+MAX_STALE_SECONDS = 24 * 3600  # batas cache lama saat Open-Meteo tidak dapat dihubungi
+WIB = timezone(timedelta(hours=7))
 
 # Koordinat Bandara Juanda (WARR)
 LAT_JUANDA = -7.3798
@@ -69,7 +71,7 @@ def fetch_open_meteo_raw(force_refresh=False):
                 cached = json.load(f)
             cached_time = cached.get("_cached_at", 0)
             if now - cached_time < CACHE_TTL_SECONDS:
-                return cached["data"], True
+                return cached["data"], True, False
         except Exception:
             pass
 
@@ -96,15 +98,16 @@ def fetch_open_meteo_raw(force_refresh=False):
         except Exception:
             pass
 
-        return raw_data, False
+        return raw_data, False, False
 
     except Exception as exc:
-        # Jika request gagal, coba gunakan cache lama apapun usianya
+        # Jika request gagal, gunakan cache lama selama umurnya masih wajar
         if CACHE_FILE.exists():
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
                     cached = json.load(f)
-                return cached["data"], True
+                if now - cached.get("_cached_at", 0) < MAX_STALE_SECONDS:
+                    return cached["data"], True, True
             except Exception:
                 pass
         raise RuntimeError(f"Gagal mengambil data NWP dari Open-Meteo: {str(exc)}")
@@ -112,10 +115,9 @@ def fetch_open_meteo_raw(force_refresh=False):
 
 def compute_ai_nwp_weekly_forecast(force_refresh=False):
     """
-    Menggabungkan data NWP ECMWF/GFS dengan Model Hybrid (XGBoost + LSTM)
-    untuk menghasilkan prospek early warning 7 hari terkalibrasi Bandara Juanda.
+    Memberi skor risiko berbasis aturan pada prakiraan numerik 7 hari Bandara Juanda.
     """
-    raw_nwp, is_cached = fetch_open_meteo_raw(force_refresh=force_refresh)
+    raw_nwp, is_cached, is_stale = fetch_open_meteo_raw(force_refresh=force_refresh)
     hourly = raw_nwp.get("hourly", {})
     daily = raw_nwp.get("daily", {})
 
@@ -172,9 +174,9 @@ def compute_ai_nwp_weekly_forecast(force_refresh=False):
         hour_sin = math.sin(2.0 * math.pi * hour_dec / 24.0)
         hour_cos = math.cos(2.0 * math.pi * hour_dec / 24.0)
 
-        # 2. Heuristik Probabilitas Machine Learning + Labilitas Atmosfer NWP
-        # Base ML Probability dihitung dari kondisi termodinamika & tendensi labil lokal
-        base_ml_prob = 0.04  # background prior probabilitas cuaca ekstrem Juanda
+        # 2. Skor aturan: kondisi lokal + labilitas atmosfer NWP
+        # Skor dasar dihitung dari kondisi termodinamika & tendensi labil lokal
+        base_ml_prob = 0.04  # skor dasar
 
         # Efek Anjlok Tekanan (Pressure Drop)
         if press_tendency_3h <= -1.5:
@@ -207,7 +209,7 @@ def compute_ai_nwp_weekly_forecast(force_refresh=False):
         # Weather code WMO konvektif
         wmo_bonus = 0.30 if wcode in [95, 96, 99] else (0.15 if wcode in [65, 81, 82] else 0.0)
 
-        # Total Calibrated Hazard Probability (0.0 - 1.0)
+        # Skor risiko total (0.0 - 1.0)
         calibrated_prob = min(0.98, max(0.01, base_ml_prob + cape_factor + precip_factor + gust_factor + wmo_bonus))
 
         # Status EWS Per Jam
@@ -251,8 +253,11 @@ def compute_ai_nwp_weekly_forecast(force_refresh=False):
     # 4. Agregasi Harian (Daily Summary 7 Hari)
     daily_times = daily.get("time", [])
     daily_summaries = []
+    today_wib = datetime.now(WIB).strftime("%Y-%m-%d")
 
     for d_idx, d_str in enumerate(daily_times):
+        if d_str < today_wib:
+            continue
         d_obj = datetime.strptime(d_str, "%Y-%m-%d")
         day_name = INDONESIAN_DAYS.get(d_obj.weekday(), "")
         date_formatted = d_obj.strftime(f"{day_name}, %d %b %Y")
@@ -306,11 +311,11 @@ def compute_ai_nwp_weekly_forecast(force_refresh=False):
         wmo_info = WMO_DESCRIPTIONS.get(dominant_wcode, ("Cerah Berawan", "Partly cloudy", "sun-cloud"))
 
         daily_summaries.append({
-            "day_index": d_idx,
+            "day_index": len(daily_summaries),
             "date": d_str,
             "date_display": date_formatted,
             "day_name": day_name,
-            "is_today": d_idx == 0,
+            "is_today": d_str == today_wib,
             "weather_desc": wmo_info[0],
             "weather_icon": wmo_info[2],
             "weather_code": dominant_wcode,
@@ -335,9 +340,10 @@ def compute_ai_nwp_weekly_forecast(force_refresh=False):
         "status": "success",
         "station": "WARR (Bandara Internasional Juanda, Surabaya)",
         "coordinates": {"latitude": LAT_JUANDA, "longitude": LON_JUANDA},
-        "source": "ECMWF/GFS Physics Ensemble + Pure-Math Hybrid ML (Juanda Calibrated)",
-        "generated_at_wib": datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%d %H:%M:%S WIB"),
+        "source": "Open-Meteo (NWP global) + skor aturan",
+        "generated_at_wib": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB"),
         "cached": is_cached,
+        "stale": is_stale,
         "daily_summaries": daily_summaries,
         "total_days": len(daily_summaries)
     }

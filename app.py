@@ -1,17 +1,19 @@
 import os
 import re
+import hmac
 import json
 import time
+import threading
 import requests
 import gspread
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from predict_service import predict_from_gsheet, predict_from_raw_metar_list
+from predict_service import _metar_timestamp, predict_from_gsheet, predict_from_raw_metar_list
 from lstm_service import (
     get_lstm_public_metadata,
     predict_lstm_from_gsheet,
@@ -84,6 +86,27 @@ _latest_parsed_metar = None
 _last_saved_metar_code = None
 _last_saved_slot_time = None
 SHEET_RETRY_INTERVAL = 60
+
+# Satu pengumpulan pada satu waktu: scheduler dan permintaan pengunjung bisa
+# bersamaan, dan tanpa kunci keduanya menulis slot yang sama.
+_collect_lock = threading.Lock()
+_last_collect = None
+MIN_COLLECT_INTERVAL = 20
+
+# Petunjuk posisi baris terakhir. row_count milik gspread hanya salinan dan
+# melenceng pada proses yang hidup lama, jadi hanya dipakai saat pertama membaca.
+_tail_hint = None
+_raw_column_ok = None
+
+
+def require_admin(x_admin_token: str | None = Header(default=None)):
+    """Endpoint yang menulis ke Google Sheet wajib membawa header X-Admin-Token."""
+    expected = os.environ.get("ADMIN_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="ADMIN_TOKEN belum diatur di server.")
+    if not hmac.compare_digest((x_admin_token or "").encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Token admin salah atau belum diisi.")
+
 
 def get_credentials():
     """
@@ -193,21 +216,46 @@ def save_local_record(record: dict):
 # ---------------------------------------------
 # AMBIL BARIS TERAKHIR GOOGLE SHEET SECARA CEPAT
 # ---------------------------------------------
+def read_tail_rows(sheet, count, hint=None):
+    """
+    Membaca `count` baris data terakhir (kolom A-G) tanpa membaca 100k+ baris.
+    Mengembalikan (baris, nomor baris terakhir).
+    """
+    start = max(2, hint - count + 1 if hint else sheet.row_count - 1500)
+    rows = sheet.get_values(f"A{start}:G")
+    filled = [i for i, r in enumerate(rows) if r and str(r[0]).strip()]
+    if not filled and start > 2:
+        # Ujung grid hanya berisi baris kosong, atau petunjuk posisi sudah usang.
+        start = 2
+        rows = sheet.get_values("A2:G")
+        filled = [i for i, r in enumerate(rows) if r and str(r[0]).strip()]
+    if not filled:
+        return [], start - 1
+    end = filled[-1] + 1
+    return rows[max(0, end - count):end], start + end - 1
+
+def raw_column_ready(sheet):
+    """True bila kolom G tersedia untuk METAR mentah (kosong atau milik kita)."""
+    global _raw_column_ok
+    if _raw_column_ok is None:
+        try:
+            if sheet.col_count < 7:
+                _raw_column_ok = False
+            else:
+                header = sheet.acell("G1").value
+                if not header:
+                    sheet.update_acell("G1", "raw_metar")
+                _raw_column_ok = header in (None, "", "raw_metar")
+        except Exception as e:
+            print(f"Kolom raw_metar belum dapat dipakai: {e}")
+            return False
+    return _raw_column_ok
+
 def get_recent_rows_from_sheet(sheet, count=20):
-    """Mengambil 20 baris terakhir dari sheet berukuran 100k+ secara cepat"""
-    max_rows = sheet.row_count
-    chunk_size = 1500
-    start_chunk = max(1, max_rows - chunk_size)
-    col_a_chunk = sheet.get_values(f"A{start_chunk}:A{max_rows}")
-
-    last_offset = 0
-    for i, r in enumerate(col_a_chunk):
-        if r and r[0].strip():
-            last_offset = i
-    last_row = start_chunk + last_offset
-
-    start_row = max(2, last_row - count + 1)
-    raw_rows = sheet.get_values(f"A{start_row}:F{last_row}")
+    """Mengambil baris terakhir dari sheet berukuran 100k+ secara cepat"""
+    global _tail_hint
+    raw_rows, last_row = read_tail_rows(sheet, count, _tail_hint)
+    _tail_hint = last_row
 
     records = []
     seen_slots = set()
@@ -250,6 +298,8 @@ def get_recent_rows_from_sheet(sheet, count=20):
             "temp": temp,
             "bad_weather": bad
         })
+        if len(r) > 6 and r[6]:
+            records[-1]["raw_metar"] = r[6]
     return records, last_row
 
 # ---------------------------------------------
@@ -260,15 +310,14 @@ def get_metar_observation_time_utc(raw_text: str):
     Ekstrak kode waktu dari METAR (contoh: 022130Z)
     dan format waktu langsung dalam UTC (Zulu):
     YYYY-MM-DD HH:MM:00
+
+    METAR hanya memuat tanggal, tanpa bulan. Bulan dipilih yang paling dekat
+    dengan waktu sekarang agar METAR akhir bulan tidak terbaca sebagai bulan baru.
     """
     m = re.search(r'\b(\d{2})(\d{2})(\d{2})Z\b', raw_text)
     if m:
-        day, hour, minute = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        now_utc = datetime.now(timezone.utc)
-        obs_utc = now_utc.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
-        slot_utc = obs_utc.strftime("%Y-%m-%d %H:%M:%S")
-        code = f"{day:02d}{hour:02d}{minute:02d}Z"
-        return slot_utc, code
+        slot_utc = _metar_timestamp(raw_text).strftime("%Y-%m-%d %H:%M:%S")
+        return slot_utc, m.group(0)
     
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), None
 
@@ -337,7 +386,18 @@ def parse_slot_datetime(s: str):
     return None
 
 def fetch_and_append_metar():
-    global _latest_raw_metar, _latest_parsed_metar, _last_saved_metar_code, _last_saved_slot_time
+    """Mengumpulkan METAR; panggilan yang berdekatan memakai hasil yang sama."""
+    global _last_collect
+    with _collect_lock:
+        if _last_collect and time.monotonic() - _last_collect[0] < MIN_COLLECT_INTERVAL:
+            return _last_collect[1]
+        result = _collect_metar()
+        if result.get("status") in ("success", "skipped"):
+            _last_collect = (time.monotonic(), result)
+        return result
+
+def _collect_metar():
+    global _cached_sheet, _tail_hint, _latest_raw_metar, _latest_parsed_metar, _last_saved_metar_code, _last_saved_slot_time
     # Ambil data 24 jam terakhir dari Aviation Weather API agar bisa auto-backfill jika sempat offline
     url_24h = "https://aviationweather.gov/api/data/metar?ids=WARR&format=raw&hours=24"
     try:
@@ -348,6 +408,7 @@ def fetch_and_append_metar():
             resp_single = requests.get("https://aviationweather.gov/api/data/metar?ids=WARR&format=raw", timeout=10)
             raw_lines = [resp_single.text.strip()] if resp_single.text.strip() else []
             
+        raw_lines = [l for l in raw_lines if not re.search(r"\bNIL\b", l)]
         if not raw_lines:
             return {"status": "error", "message": "METAR kosong dari API"}
 
@@ -394,6 +455,9 @@ def fetch_and_append_metar():
                         last_recorded_dt = dt
         except Exception as se:
             sheet_error = str(se)
+            # Buka ulang sheet pada percobaan berikutnya.
+            _cached_sheet = None
+            _tail_hint = None
 
         # Jika sheet tidak dapat diakses, cek local history
         if not last_recorded_dt:
@@ -448,6 +512,11 @@ def fetch_and_append_metar():
         # Simpan ke Google Sheet jika ada data baru
         if new_rows_for_sheet and sheet:
             try:
+                if raw_column_ready(sheet):
+                    new_rows_for_sheet = [
+                        row + [rec["raw_metar"]]
+                        for row, rec in zip(new_rows_for_sheet, new_records_for_local)
+                    ]
                 sheet.append_rows(new_rows_for_sheet, value_input_option="USER_ENTERED")
                 sheet_synced = True
                 appended_count = len(new_rows_for_sheet)
@@ -469,6 +538,14 @@ def fetch_and_append_metar():
                 "appended_count": appended_count,
                 "data": latest_record,
                 "sheet_synced": sheet_synced,
+                "sheet_error": sheet_error
+            }
+        elif sheet_error:
+            return {
+                "status": "warning",
+                "message": "Google Sheet tidak dapat dibaca atau ditulis; data disimpan di cache lokal.",
+                "data": latest_record,
+                "sheet_synced": False,
                 "sheet_error": sheet_error
             }
         else:
@@ -708,7 +785,7 @@ def get_weekly_forecast(refresh: bool = False):
         raise HTTPException(status_code=503, detail=f"Gagal memuat prakiraan 7 hari: {str(error)}")
 
 
-@app.post("/api/forecast-7days/snapshot")
+@app.post("/api/forecast-7days/snapshot", dependencies=[Depends(require_admin)])
 def trigger_forecast_snapshot(force: bool = False):
     """Menyimpan snapshot prakiraan 7 hari ke Google Sheets tab 'Forecast_7Days_Snapshot'."""
     try:
@@ -730,7 +807,7 @@ def list_forecast_snapshots():
         raise HTTPException(status_code=500, detail=f"Gagal mengambil riwayat snapshot dari GSheet: {str(error)}")
 
 
-@app.post("/api/forecast-7days/verify")
+@app.post("/api/forecast-7days/verify", dependencies=[Depends(require_admin)])
 def trigger_snapshot_verification():
     """Memicu verifikasi pencocokan snapshot lampau vs data METAR riil di Sheet1."""
     try:

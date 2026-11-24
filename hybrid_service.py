@@ -45,6 +45,10 @@ def compute_hybrid_predictions(xgb_res: dict, lstm_res: dict) -> dict:
     for h in HORIZONS:
         xgb_p = xgb_map.get(h)
         lstm_p = lstm_map.get(h)
+        if xgb_p and not xgb_p.get("available"):
+            xgb_p = None
+        if lstm_p and not lstm_p.get("available"):
+            lstm_p = None
 
         if not xgb_p and not lstm_p:
             continue

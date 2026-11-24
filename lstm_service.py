@@ -261,7 +261,12 @@ def _predict_probabilities(sequence):
 def predict_lstm_from_observations(records):
     if not isinstance(records, list):
         raise ValueError("Data observasi LSTM harus berupa daftar.")
-    observations = [_normalize_observation(record) for record in records]
+    observations = []
+    for record in records:
+        try:
+            observations.append(_normalize_observation(record))
+        except ValueError:
+            continue  # observasi tidak lengkap dilewati, seperti pada XGBoost
     observations.sort(key=lambda item: item["timestamp"])
     if len(observations) < LOOKBACK:
         raise ValueError(f"Diperlukan minimal {LOOKBACK} observasi METAR untuk lookback LSTM.")
