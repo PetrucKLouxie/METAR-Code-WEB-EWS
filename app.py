@@ -7,7 +7,7 @@ import threading
 import requests
 import gspread
 from datetime import datetime, timezone, timedelta
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +20,9 @@ from lstm_service import (
     predict_lstm_from_raw_metar_list,
 )
 from hybrid_service import compute_hybrid_predictions, predict_hybrid_from_records
+import ews_log
 import ews_service
+import map_service
 from weekly_nwp_service import compute_ai_nwp_weekly_forecast
 
 try:
@@ -533,6 +535,7 @@ def _collect_metar():
             save_local_record(latest_record)
 
         if appended_count > 0:
+            log_prediction(sheet)
             return {
                 "status": "success",
                 "message": f"Berhasil menambahkan {appended_count} observasi METAR baru ke Google Sheet.",
@@ -618,6 +621,8 @@ def api_status():
             "latest": "/api/metar/latest",
             "history": "/api/metar/history",
             "ews": "/api/ews/status",
+            "ews_model": "/api/ews/model",
+            "map": "/api/peta",
             "xgboost_predict": "/api/xgboost/predict",
             "docs": "/docs"
         },
@@ -636,17 +641,18 @@ def get_latest():
 @app.get("/metar/history")
 @app.get("/api/metar/history/")
 @app.get("/metar/history/")
-def get_history():
-    """Membaca 20 baris riwayat terakhir dari Google Sheets (format UTC)"""
+def get_history(count: int = 20):
+    """Membaca baris riwayat terakhir dari Google Sheets (format UTC), 1 sampai 100 baris"""
+    count = max(1, min(100, count))
     global _latest_raw_metar
     if not _latest_raw_metar:
         fetch_and_append_metar()
 
     try:
         sheet = get_sheet()
-        records, last_row = get_recent_rows_from_sheet(sheet, count=20)
+        records, last_row = get_recent_rows_from_sheet(sheet, count=count)
         if records:
-            if _latest_raw_metar and len(records) > 0:
+            if _latest_raw_metar and not records[-1].get("raw_metar"):
                 records[-1]["raw_metar"] = _latest_raw_metar
             return {
                 "total": len(records),
@@ -662,7 +668,7 @@ def get_history():
     return {
         "total": len(local_records),
         "source": "local_storage",
-        "data": local_records[-20:],
+        "data": local_records[-count:],
         "latest_raw": _latest_raw_metar,
         "timezone": "UTC"
     }
@@ -761,27 +767,12 @@ def predict_hybrid(payload: dict = None):
         raise HTTPException(status_code=503, detail="Inferensi Hybrid EWS tidak tersedia saat ini.") from error
 
 
-@app.get("/api/ews/status")
-def ews_status():
-    """
-    Peringatan 1-24 jam: METAR + ECMWF IFS (cadangan: METAR saja).
-    LSTM lama disertakan sebagai pembanding dan tidak menentukan status.
-    """
-    try:
-        try:
-            # 48 jam riwayat untuk fitur badai terkini
-            records, _ = get_recent_rows_from_sheet(get_sheet(), count=100)
-            source = "google_sheets"
-        except Exception:
-            records = load_local_history()
-            source = "local_storage"
-        result = ews_service.predict(records)
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    except Exception as error:
-        print(f"EWS inference failed: {error!r}", flush=True)
-        raise HTTPException(status_code=503, detail="Peringatan dini tidak tersedia saat ini.") from error
+STALE_AFTER_MINUTES = 75
 
+
+def build_ews(records):
+    """Peringatan METAR + ECMWF, LSTM lama sebagai pembanding, dan umur datanya."""
+    result = ews_service.predict(records)
     lstm = {}
     try:
         lstm = {p["horizon"]: p for p in predict_lstm_from_gsheet(records[-20:])["predictions"]}
@@ -796,8 +787,74 @@ def ews_status():
             "status": other["status"]["label"] if other else "N/A",
             "color": other["status"]["color"] if other else "gray",
         }
+    observed = datetime.strptime(result["observed_at_utc"], "%Y-%m-%d %H:%M UTC").replace(tzinfo=timezone.utc)
+    age = int((datetime.now(timezone.utc) - observed).total_seconds() // 60)
+    result["data_age_minutes"] = age
+    result["stale"] = age > STALE_AFTER_MINUTES
+    result["model_version"] = ews_service.MODEL_VERSION
+    return result
+
+
+def log_prediction(sheet):
+    """Catat prediksi untuk observasi yang baru masuk; kegagalan tidak boleh mengganggu pencatatan METAR."""
+    try:
+        records, _ = get_recent_rows_from_sheet(sheet, count=100)
+        ews_log.append(sheet.spreadsheet, build_ews(records), datetime.now(timezone.utc))
+    except Exception as error:
+        print(f"Prediksi tidak tercatat: {error!r}", flush=True)
+
+
+@app.get("/api/ews/status")
+def ews_status():
+    """
+    Peringatan 1-24 jam: METAR + ECMWF IFS (cadangan: METAR saja).
+    LSTM lama disertakan sebagai pembanding dan tidak menentukan status.
+    """
+    try:
+        try:
+            # 48 jam riwayat untuk fitur badai terkini
+            records, _ = get_recent_rows_from_sheet(get_sheet(), count=100)
+            source = "google_sheets"
+        except Exception:
+            records = load_local_history()
+            source = "local_storage"
+        result = build_ews(records)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        print(f"EWS inference failed: {error!r}", flush=True)
+        raise HTTPException(status_code=503, detail="Peringatan dini tidak tersedia saat ini.") from error
     result["source"] = source
     return result
+
+
+@app.get("/api/ews/model")
+def ews_model():
+    """Ambang, versi, dan hasil uji model peringatan yang sedang dipakai."""
+    with open(os.path.join(BASE_DIR, "saved_models_ecmwf", "evaluasi.json"), encoding="utf-8") as f:
+        evaluation = json.load(f)
+    return {
+        "version": ews_service.MODEL_VERSION,
+        "ecmwf_model": ews_service.BUNDLE["ecmwf_model"],
+        "features": ews_service.BUNDLE["feature_order"],
+        "horizons": {
+            h: {kind: ews_service.BUNDLE["models"][kind][h]["thresholds"] for kind in ("utama", "cadangan")}
+            for h in ews_service.LEAD_DAY
+        },
+        "evaluation": evaluation,
+    }
+
+
+@app.get("/api/peta")
+def map_fields(response: Response):
+    """Medan angin, hujan, CAPE, kelembapan, dan suhu ECMWF untuk peta."""
+    try:
+        data = map_service.get_map()
+    except Exception as error:
+        print(f"Peta tidak tersedia: {error!r}", flush=True)
+        raise HTTPException(status_code=503, detail="Data peta tidak tersedia saat ini.") from error
+    response.headers["Cache-Control"] = "public, s-maxage=1800, stale-while-revalidate=3600"
+    return data
 
 
 @app.get("/api/evaluation/live")

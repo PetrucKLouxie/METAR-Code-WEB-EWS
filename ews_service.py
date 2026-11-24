@@ -7,6 +7,7 @@ Bila ECMWF tidak dapat diambil, dipakai model cadangan yang hanya memakai METAR.
 """
 
 import bisect
+import hashlib
 import json
 import math
 import struct
@@ -18,8 +19,10 @@ from pathlib import Path
 
 from predict_service import FEATURE_NAMES, _feature_vector, _normalize_observation
 
-with (Path(__file__).resolve().parent / "saved_models_ecmwf" / "model.json").open(encoding="utf-8") as _f:
-    BUNDLE = json.load(_f)
+_MODEL_BYTES = (Path(__file__).resolve().parent / "saved_models_ecmwf" / "model.json").read_bytes()
+BUNDLE = json.loads(_MODEL_BYTES)
+MODEL_VERSION = hashlib.sha256(_MODEL_BYTES).hexdigest()[:8]
+del _MODEL_BYTES
 
 LEAD_DAY = BUNDLE["lead_day"]
 EC_VARS = ["precipitation", "showers", "temperature_2m", "dew_point_2m", "relative_humidity_2m", "cloud_cover",

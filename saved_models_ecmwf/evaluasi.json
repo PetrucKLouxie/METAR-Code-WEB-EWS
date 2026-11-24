@@ -1,0 +1,368 @@
+{
+ "model_version": "048090d8",
+ "test_period": "2026-01-01 s.d. 2026-10-02",
+ "test_samples": 13166,
+ "training_period": {
+  "utama": "2024-02-13 s.d. 2025-12-31",
+  "cadangan": "2021-01-03 s.d. 2025-12-31"
+ },
+ "target": "Badai petir atau angin rata-rata minimal 25 kt pada slot 30 menit di waktu target, menurut METAR Juanda",
+ "note": "Ambang dan kalibrasi dari prediksi silang data latih. Selang 95% dari bootstrap per hari.",
+ "horizons": {
+  "1h": {
+   "events": 507,
+   "prauc": {
+    "klimatologi": 0.2027,
+    "paralel_lama": 0.2646,
+    "cadangan": 0.4281,
+    "utama": 0.4705
+   },
+   "gain_over_climatology": [
+    0.2656,
+    0.2085,
+    0.3281
+   ],
+   "better_than_climatology": true,
+   "gain_over_old_site": [
+    0.2033,
+    0.1426,
+    0.2654
+   ],
+   "gain_over_fallback": [
+    0.0401,
+    0.0098,
+    0.0661
+   ],
+   "utama": {
+    "waspada": {
+     "ambang": 0.1103,
+     "POD": 0.7041,
+     "FAR": 0.6493,
+     "CSI": 0.3057,
+     "HSS": 0.4394,
+     "TP": 357,
+     "FP": 661,
+     "FN": 150
+    },
+    "bahaya": {
+     "ambang": 0.3962,
+     "POD": 0.3925,
+     "FAR": 0.4363,
+     "CSI": 0.3011,
+     "HSS": 0.4453,
+     "TP": 199,
+     "FP": 154,
+     "FN": 308
+    },
+    "brier": 0.0257
+   },
+   "cadangan": {
+    "waspada": {
+     "ambang": 0.1012,
+     "POD": 0.7318,
+     "FAR": 0.6986,
+     "CSI": 0.2714,
+     "HSS": 0.3939,
+     "TP": 371,
+     "FP": 860,
+     "FN": 136
+    },
+    "bahaya": {
+     "ambang": 0.3208,
+     "POD": 0.5069,
+     "FAR": 0.487,
+     "CSI": 0.3422,
+     "HSS": 0.4904,
+     "TP": 257,
+     "FP": 244,
+     "FN": 250
+    },
+    "brier": 0.0264
+   }
+  },
+  "3h": {
+   "events": 507,
+   "prauc": {
+    "klimatologi": 0.2027,
+    "paralel_lama": 0.2143,
+    "cadangan": 0.2564,
+    "utama": 0.2924
+   },
+   "gain_over_climatology": [
+    0.0869,
+    0.0334,
+    0.1348
+   ],
+   "better_than_climatology": true,
+   "gain_over_old_site": [
+    0.0741,
+    0.0326,
+    0.1204
+   ],
+   "gain_over_fallback": [
+    0.0331,
+    -0.0113,
+    0.0817
+   ],
+   "utama": {
+    "waspada": {
+     "ambang": 0.0781,
+     "POD": 0.8146,
+     "FAR": 0.7946,
+     "CSI": 0.1962,
+     "HSS": 0.284,
+     "TP": 413,
+     "FP": 1598,
+     "FN": 94
+    },
+    "bahaya": {
+     "ambang": 0.2271,
+     "POD": 0.3077,
+     "FAR": 0.6268,
+     "CSI": 0.2029,
+     "HSS": 0.3134,
+     "TP": 156,
+     "FP": 262,
+     "FN": 351
+    },
+    "brier": 0.0308
+   },
+   "cadangan": {
+    "waspada": {
+     "ambang": 0.0864,
+     "POD": 0.8166,
+     "FAR": 0.8142,
+     "CSI": 0.1784,
+     "HSS": 0.2561,
+     "TP": 414,
+     "FP": 1814,
+     "FN": 93
+    },
+    "bahaya": {
+     "ambang": 0.1996,
+     "POD": 0.4477,
+     "FAR": 0.7304,
+     "CSI": 0.2023,
+     "HSS": 0.303,
+     "TP": 227,
+     "FP": 615,
+     "FN": 280
+    },
+    "brier": 0.0314
+   }
+  },
+  "9h": {
+   "events": 505,
+   "prauc": {
+    "klimatologi": 0.2015,
+    "paralel_lama": 0.1768,
+    "cadangan": 0.2236,
+    "utama": 0.2669
+   },
+   "gain_over_climatology": [
+    0.0662,
+    0.0168,
+    0.1222
+   ],
+   "better_than_climatology": true,
+   "gain_over_old_site": [
+    0.0899,
+    0.046,
+    0.1421
+   ],
+   "gain_over_fallback": [
+    0.0433,
+    -0.0046,
+    0.0919
+   ],
+   "utama": {
+    "waspada": {
+     "ambang": 0.0674,
+     "POD": 0.8158,
+     "FAR": 0.8167,
+     "CSI": 0.176,
+     "HSS": 0.2525,
+     "TP": 412,
+     "FP": 1836,
+     "FN": 93
+    },
+    "bahaya": {
+     "ambang": 0.2407,
+     "POD": 0.1525,
+     "FAR": 0.6333,
+     "CSI": 0.1207,
+     "HSS": 0.1973,
+     "TP": 77,
+     "FP": 133,
+     "FN": 428
+    },
+    "brier": 0.0315
+   },
+   "cadangan": {
+    "waspada": {
+     "ambang": 0.083,
+     "POD": 0.802,
+     "FAR": 0.8309,
+     "CSI": 0.1623,
+     "HSS": 0.2306,
+     "TP": 405,
+     "FP": 1990,
+     "FN": 100
+    },
+    "bahaya": {
+     "ambang": 0.187,
+     "POD": 0.3842,
+     "FAR": 0.7457,
+     "CSI": 0.1806,
+     "HSS": 0.2724,
+     "TP": 194,
+     "FP": 569,
+     "FN": 311
+    },
+    "brier": 0.0322
+   }
+  },
+  "18h": {
+   "events": 497,
+   "prauc": {
+    "klimatologi": 0.1976,
+    "paralel_lama": 0.2015,
+    "cadangan": 0.1821,
+    "utama": 0.2073
+   },
+   "gain_over_climatology": [
+    0.011,
+    -0.0336,
+    0.0585
+   ],
+   "better_than_climatology": false,
+   "gain_over_old_site": [
+    0.0042,
+    -0.059,
+    0.0604
+   ],
+   "gain_over_fallback": [
+    0.0256,
+    -0.0251,
+    0.0754
+   ],
+   "utama": {
+    "waspada": {
+     "ambang": 0.0777,
+     "POD": 0.7002,
+     "FAR": 0.8206,
+     "CSI": 0.1666,
+     "HSS": 0.2399,
+     "TP": 348,
+     "FP": 1592,
+     "FN": 149
+    },
+    "bahaya": {
+     "ambang": 0.1744,
+     "POD": 0.3099,
+     "FAR": 0.7634,
+     "CSI": 0.1549,
+     "HSS": 0.2356,
+     "TP": 154,
+     "FP": 497,
+     "FN": 343
+    },
+    "brier": 0.0323
+   },
+   "cadangan": {
+    "waspada": {
+     "ambang": 0.0779,
+     "POD": 0.7284,
+     "FAR": 0.8507,
+     "CSI": 0.1415,
+     "HSS": 0.1976,
+     "TP": 362,
+     "FP": 2062,
+     "FN": 135
+    },
+    "bahaya": {
+     "ambang": 0.1982,
+     "POD": 0.2636,
+     "FAR": 0.7831,
+     "CSI": 0.1351,
+     "HSS": 0.205,
+     "TP": 131,
+     "FP": 473,
+     "FN": 366
+    },
+    "brier": 0.0329
+   }
+  },
+  "24h": {
+   "events": 497,
+   "prauc": {
+    "klimatologi": 0.1976,
+    "paralel_lama": 0.1928,
+    "cadangan": 0.1743,
+    "utama": 0.2002
+   },
+   "gain_over_climatology": [
+    0.0067,
+    -0.0358,
+    0.052
+   ],
+   "better_than_climatology": false,
+   "gain_over_old_site": [
+    0.0111,
+    -0.0403,
+    0.0663
+   ],
+   "gain_over_fallback": [
+    0.0291,
+    -0.0109,
+    0.0705
+   ],
+   "utama": {
+    "waspada": {
+     "ambang": 0.0617,
+     "POD": 0.7928,
+     "FAR": 0.8413,
+     "CSI": 0.1524,
+     "HSS": 0.2151,
+     "TP": 394,
+     "FP": 2089,
+     "FN": 103
+    },
+    "bahaya": {
+     "ambang": 0.189,
+     "POD": 0.2676,
+     "FAR": 0.7528,
+     "CSI": 0.1475,
+     "HSS": 0.2267,
+     "TP": 133,
+     "FP": 405,
+     "FN": 364
+    },
+    "brier": 0.0323
+   },
+   "cadangan": {
+    "waspada": {
+     "ambang": 0.0741,
+     "POD": 0.7445,
+     "FAR": 0.8573,
+     "CSI": 0.136,
+     "HSS": 0.188,
+     "TP": 370,
+     "FP": 2223,
+     "FN": 127
+    },
+    "bahaya": {
+     "ambang": 0.182,
+     "POD": 0.3441,
+     "FAR": 0.7827,
+     "CSI": 0.1536,
+     "HSS": 0.2308,
+     "TP": 171,
+     "FP": 616,
+     "FN": 326
+    },
+    "brier": 0.0327
+   }
+  }
+ }
+}
