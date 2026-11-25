@@ -38,7 +38,7 @@ class ParityTest(unittest.TestCase):
 
     def test_probabilities_match_training(self):
         data = json.loads((Path(__file__).parent / "ecmwf_parity.json").read_text())
-        self.assertEqual(len(data), 10)
+        self.assertEqual(len(data), 15)
         for key, d in data.items():
             kind, horizon = key.split("|")
             for row, expected in zip(d["X"], d["p"]):
@@ -104,13 +104,13 @@ class PredictTest(unittest.TestCase):
     def test_uses_ecmwf_when_available(self):
         result = self.predict(records(), {"return_value": ecmwf_payload()})
         self.assertEqual([p["horizon"] for p in result["predictions"]], ["1h", "3h", "9h", "18h", "24h"])
-        self.assertTrue(all(p["model"] == "METAR + ECMWF IFS" for p in result["predictions"]))
+        self.assertTrue(all(p["model"] == "LSTM, XGBoost, ECMWF IFS" for p in result["predictions"]))
         self.assertTrue(result["ecmwf_available"])
         self.assertEqual(result["predictions"][0]["target_utc"], "2026-11-24 17:00 UTC")
 
     def test_falls_back_to_metar_only(self):
         result = self.predict(records(), {"side_effect": OSError("offline")})
-        self.assertTrue(all(p["model"] == "METAR saja" for p in result["predictions"]))
+        self.assertTrue(all(p["model"] == "XGBoost, METAR saja" for p in result["predictions"]))
         self.assertFalse(result["ecmwf_available"])
 
     def test_status_follows_thresholds(self):

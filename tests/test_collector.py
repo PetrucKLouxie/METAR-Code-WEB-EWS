@@ -119,6 +119,29 @@ class CollectorTest(unittest.TestCase):
         records, last_row = app.get_recent_rows_from_sheet(sheet, count=20)
         self.assertEqual((len(records), last_row), (2, 3))
 
+    def test_duplicate_rows_do_not_shorten_history(self):
+        slots = [f"2026-11-24 {h:02d}:{m:02d}:00" for h in range(10) for m in (0, 30)]
+        sheet = FakeSheet([s for slot in slots for s in (slot, slot)])
+        records, _ = app.get_recent_rows_from_sheet(sheet, count=12)
+        self.assertEqual([r["slot_30min"] for r in records], slots[-12:])
+
+    def test_row_added_by_another_server_is_not_appended_again(self):
+        # Salinan server lain menulis slot yang sama setelah kita membaca, sebelum kita menulis.
+        sheet = FakeSheet(["2026-11-24 15:30:00"])
+        original, calls = sheet.get_values, []
+
+        def get_values(cell_range):
+            out = original(cell_range)
+            calls.append(cell_range)
+            if len(calls) == 1:
+                sheet.append_rows([["2026-11-24 16:00:00", "5", "25", "1010", "28", "0"]])
+            return out
+
+        sheet.get_values = get_values
+        result = self.collect(sheet, (2026, 11, 24, 16, 5), ["241600Z"])
+        self.assertEqual(sheet.slots, ["2026-11-24 15:30:00", "2026-11-24 16:00:00"])
+        self.assertEqual(result["status"], "skipped")
+
     def test_training_label_rule_is_unchanged(self):
         # Kolom bad_weather adalah label training; definisinya harus tetap.
         for rest, expected in (

@@ -25,7 +25,7 @@ function buildHorizons() {
   const ev = INFO && INFO.evaluation.horizons;
   HZ = EWS.predictions.map(p => ({
     key: p.horizon, name: `+${parseInt(p.horizon, 10)} jam`, min: HKEYS[p.horizon], p: p.probability, w: p.thresholds.th_waspada, b: p.thresholds.th_bahaya,
-    model: p.model, lstm: p.lstm ? p.lstm.probability : null, reliable: ev ? ev[p.horizon].better_than_climatology : HKEYS[p.horizon] <= 540,
+    kind: p.kind, reliable: ev ? ev[p.horizon].better_than_climatology : HKEYS[p.horizon] <= 540,
   }));
 }
 function pOf(h) {
@@ -179,6 +179,7 @@ function drawFlow(dt) {
 
 /* ---------- panel ---------- */
 const kv = k => k === 'off' ? 'var(--mute)' : `var(--${k})`, kt = k => k === 'off' ? 'var(--mute)' : `var(--${k}-t)`;
+const lstmAt = m => { const q = EWS.lstm_forecast, i = m / 30 - 1; return q && q.temperature[i] !== undefined ? `${num(q.temperature[i])} °C, ${num(q.wind_speed[i], 0)} kt` : ''; };
 const ACT = ['Belum ada tindakan khusus. Tunggu pembaruan berikutnya.', 'Perhatikan perkembangan awan dan informasi BMKG.', 'Potensi badai petir atau angin kencang. Ikuti peringatan resmi BMKG.'];
 function render() {
   if (!EWS || !OBS.length || !GEOJ) return;
@@ -192,7 +193,7 @@ function render() {
     const c = S.c, h = HZ[c.hi], reach = HZ.filter(q => q.reliable).at(-1);
     $('mode').textContent = t === 0 ? `Risiko tertinggi sampai ${reach.name}` : `Prakiraan ${h.name}`;
     $('say').innerHTML = isStale() ? `<b>Data lama</b>, ${num(EWS.data_age_minutes, 0)} menit` : `<b>${c.n}</b> pukul ${hm(h.min)}`;
-    $('sum').innerHTML = `Indeks ${Math.round(c.lv)} dari 100.<table style="margin-top:6px"><tr><td>Peluang badai</td><td><b>${pc(c.p)}</b></td></tr><tr><td>Waspada, bahaya</td><td>${pc(h.w)}, ${pc(h.b)}</td></tr><tr><td>Masukan</td><td>${h.model.includes('ECMWF') ? 'METAR, ECMWF' : 'METAR saja'}</td></tr>${set === 'real' && h.lstm !== null ? `<tr><td>LSTM, pembanding</td><td>${pc(h.lstm)}</td></tr>` : ''}</table>`;
+    $('sum').innerHTML = `Indeks ${Math.round(c.lv)} dari 100.<table style="margin-top:6px"><tr><td>Peluang badai</td><td><b>${pc(c.p)}</b></td></tr><tr><td>Waspada, bahaya</td><td>${pc(h.w)}, ${pc(h.b)}</td></tr><tr><td>Masukan</td><td>${{ berurutan: 'Ramalan LSTM, ECMWF', utama: 'METAR, ECMWF', cadangan: 'METAR saja' }[h.kind]}</td></tr>${lstmAt(h.min) ? `<tr><td>Ramalan LSTM</td><td>${lstmAt(h.min)}</td></tr>` : ''}</table>`;
     const far = HZ.map((q, i) => i).filter(i => !HZ[i].reliable).map(calc).filter(q => q.i > 0);
     $('act').textContent = isStale() ? 'METAR belum diperbarui. Peringatan ini tidak bisa dipakai sampai data masuk kembali.'
       : t > 0 && !h.reliable ? 'Pada jarak ini kemampuan model setara pola jam dan bulan, jadi baca sebagai kecenderungan musiman.'
@@ -209,7 +210,7 @@ function render() {
 function freshness() {
   if (!EWS) return;
   const age = Math.round((Date.now() - T0) / 60000);
-  $('fresh').textContent = `METAR ${wibDate(T0)} ${wibClock(T0)} WIB, ${age < 90 ? age + ' menit' : num(age / 60, 0) + ' jam'} lalu${EWS.ecmwf_available ? '' : '. ECMWF tidak tersedia, memakai model METAR saja'}`;
+  $('fresh').textContent = `METAR ${wibDate(T0)} ${wibClock(T0)} WIB, ${age < 90 ? age + ' menit' : num(age / 60, 0) + ' jam'} lalu${!EWS.ecmwf_available ? '. ECMWF tidak tersedia, memakai model METAR saja' : EWS.lstm_forecast ? '' : '. Riwayat METAR terputus, memakai METAR langsung tanpa LSTM'}`;
 }
 function minis() {
   const b = (l, k, i, r) => `<svg viewBox="0 0 40 40" aria-hidden="true"><defs><clipPath id="m${i}"><circle cx="20" cy="20" r="16.5"/></clipPath></defs><rect clip-path="url(#m${i})" y="${36.5 - l * .33}" width="40" height="40" fill="${kv(k)}" ${r ? '' : 'opacity=".55"'}/><circle cx="20" cy="20" r="17" fill="none" stroke="${kv(k)}" stroke-width="2" ${r ? '' : 'stroke-dasharray="4 3"'}/></svg>`;
@@ -220,7 +221,7 @@ function perf() {
   const ev = INFO && INFO.evaluation.horizons;
   if (!ev) { $('perf').innerHTML = '<tr><td>Hasil uji tidak dapat dimuat.</td></tr>'; return; }
   const hi = S.past ? -1 : S.c.hi;
-  $('perf').innerHTML = '<thead><tr><th>Horizon</th><th>POD</th><th>FAR</th><th>CSI</th></tr></thead>' + HZ.map((h, i) => { const q = ev[h.key].utama.waspada; return `<tr${i === hi ? ' style="font-weight:600"' : ''}><td>${h.name}${h.reliable ? '' : ', musiman'}</td><td>${fix(q.POD)}</td><td>${fix(q.FAR)}</td><td>${fix(q.CSI)}</td></tr>`; }).join('');
+  $('perf').innerHTML = '<thead><tr><th>Horizon</th><th>POD</th><th>FAR</th><th>CSI</th></tr></thead>' + HZ.map((h, i) => { const q = ev[h.key][INFO.primary].waspada; return `<tr${i === hi ? ' style="font-weight:600"' : ''}><td>${h.name}${h.reliable ? '' : ', musiman'}</td><td>${fix(q.POD)}</td><td>${fix(q.FAR)}</td><td>${fix(q.CSI)}</td></tr>`; }).join('');
 }
 function meaning(k) {
   let m;
@@ -310,10 +311,12 @@ function drawMg() {
   x.textBaseline = 'alphabetic'; box.forEach((b, i) => { x.strokeStyle = css('--line'); x.lineWidth = 1; x.strokeRect(L, b.a, w - L - Rr, b.b - b.a); x.font = F(14, 600); x.fillStyle = ink; x.textAlign = 'left'; x.fillText(`(${'abcde'[i]}) ${b.n}`, L, b.a - 6); });
   const ax = (b, lo, hi, tk, col = mu, right) => { const f = v => v === null ? null : b.b - (v - lo) / (hi - lo) * (b.b - b.a); x.font = F(13); x.textBaseline = 'middle'; tk.forEach(v => { x.fillStyle = col; x.textAlign = right ? 'left' : 'right'; x.fillText(v > 900 && v < 1100 ? v : v.toLocaleString('id-ID'), right ? w - Rr + 6 : L - 6, f(v)); if (!right) { x.strokeStyle = css('--line'); x.globalAlpha = .5; x.beginPath(); x.moveTo(L, f(v)); x.lineTo(w - Rr, f(v)); x.stroke(); x.globalAlpha = 1; } }); return f; };
   const inR = p => p[0] >= -900 && p[0] <= 1440, site = PETA && PETA.site, mod = k => site ? site[k].map((v, i) => [mapMin(i), v]).filter(inR) : [];
-  const temps = [...OBS.flatMap(o => [o.temp, o.dew]), ...mod('t').map(p => p[1])].filter(v => v !== null), tl = Math.floor(Math.min(...temps) - 1), th = Math.ceil(Math.max(...temps) + 1), five = (lo, hi, s) => { const a = []; for (let v = Math.ceil(lo / s) * s; v <= hi; v += s) a.push(v); return a; };
+  const LF = EWS.lstm_forecast, lstm = (k, last) => LF ? [[0, last], ...LF[k].map((v, i) => [(i + 1) * 30, v])] : [];
+  const temps = [...OBS.flatMap(o => [o.temp, o.dew]), ...mod('t').map(p => p[1]), ...lstm('temperature', LAST.temp).map(p => p[1]), ...lstm('dew_point', LAST.dew).map(p => p[1])].filter(v => v !== null), tl = Math.floor(Math.min(...temps) - 1), th = Math.ceil(Math.max(...temps) + 1), five = (lo, hi, s) => { const a = []; for (let v = Math.ceil(lo / s) * s; v <= hi; v += s) a.push(v); return a; };
   let f = ax(box[0], tl, th, five(tl, th, th - tl > 12 ? 5 : 2));
   polyline(x, mod('t').map(([m, v]) => [px(m), f(v)]), c2, [5, 4], 1.4); polyline(x, OBS.map(o => [px(o.t), f(o.temp)]), c2); polyline(x, OBS.map(o => [px(o.t), f(o.dew)]), c1);
-  const qs = OBS.map(o => o.q).filter(Boolean), ql = Math.min(...qs) - 1, qh = Math.max(...qs) + 1; f = ax(box[1], ql, qh, five(ql + 1, qh - 1, Math.max(1, Math.round((qh - ql) / 3)))); polyline(x, OBS.map(o => [px(o.t), f(o.q)]), ink);
+  polyline(x, lstm('temperature', LAST.temp).map(([m, v]) => [px(m), f(v)]), c2, [2, 3], 2); polyline(x, lstm('dew_point', LAST.dew).map(([m, v]) => [px(m), f(v)]), c1, [2, 3], 2);
+  const qs = [...OBS.map(o => o.q), ...lstm('pressure', LAST.q).map(p => Math.round(p[1]))].filter(Boolean), ql = Math.min(...qs) - 1, qh = Math.max(...qs) + 1; f = ax(box[1], ql, qh, five(ql + 1, qh - 1, Math.max(1, Math.round((qh - ql) / 3)))); polyline(x, OBS.map(o => [px(o.t), f(o.q)]), ink); polyline(x, lstm('pressure', LAST.q).map(([m, v]) => [px(m), f(v)]), ink, [2, 3], 2);
   { const b = box[2], my = (b.a + b.b) / 2 + 8, every = w < 600 ? 6 : 3; x.strokeStyle = x.fillStyle = ink; OBS.forEach((o, i) => { if ((OBS.length - 1 - i) % every || !o.raw) return; if (o.dir === null) { x.beginPath(); x.arc(px(o.t), my, 3.5, 0, 7); x.stroke(); } else barb(x, px(o.t), my, o.spd, o.dir, 24); }); x.strokeStyle = x.fillStyle = mu; if (site) site.s.forEach((s, i) => { const m = mapMin(i); if (m > 60 && m < 1430 && i % (w < 600 ? 4 : 2) === 0 && s !== null) barb(x, px(m), my, s, site.d[i], 24); }); }
   const rmax = Math.max(3, ...mod('p').map(p => p[1] || 0)), r3 = Math.ceil(rmax), cmax = Math.max(4000, ...mod('c').map(p => p[1] || 0)); f = ax(box[3], 0, r3, r3 > 6 ? five(0, r3, Math.ceil(r3 / 3)) : five(0, r3 - 1, 1), c1);
   if (site) { const bw = (w - L - Rr) / 39 - 3; x.fillStyle = c1; mod('p').forEach(([m, v]) => x.fillRect(px(m) - bw / 2, f(v || 0), bw, box[3].b - f(v || 0))); const fc = ax(box[3], 0, cmax, [0, 2000, 4000], c3, true); polyline(x, mod('c').map(([m, v]) => [px(m), fc(v)]), c3); } else { x.fillStyle = mu; x.textAlign = 'center'; x.fillText('Medan ECMWF tidak tersedia', (L + w - Rr) / 2, (box[3].a + box[3].b) / 2); }
@@ -321,11 +324,11 @@ function drawMg() {
   polyline(x, HZ.map((q, i) => [px(q.min), f(calc(i).lv)]), mu, [1, 3], 1.4);
   HZ.forEach((q, i) => { const c = calc(i), X = px(q.min), Y = f(c.lv), col = isStale() ? mu : css('--' + c.k); x.beginPath(); x.arc(X, Y, 6, 0, 7); x.fillStyle = q.reliable ? col : css('--panel'); x.fill(); x.strokeStyle = col; x.lineWidth = 2.5; x.stroke(); });
   x.textBaseline = 'middle'; x.font = F(13.5);
-  if (w > 600) { const lg = (X, Y, col, s, kind) => { if (kind === 'o' || kind === 'h') { x.beginPath(); x.arc(X, Y, 5, 0, 7); x.fillStyle = kind === 'o' ? col : css('--panel'); x.fill(); x.strokeStyle = col; x.lineWidth = 2; x.stroke(); } else polyline(x, [[X - 9, Y], [X + 9, Y]], col, kind === 'd' ? [5, 4] : [], 2); x.fillStyle = ink; x.textAlign = 'left'; x.fillText(s, X + 14, Y); }; const Y = box[0].a - 10; lg(w - Rr - 352, Y, c2, 'suhu teramati'); lg(w - Rr - 222, Y, c2, 'suhu ECMWF', 'd'); lg(w - Rr - 104, Y, c1, 'titik embun'); lg(w - Rr - 230, box[4].a - 10, mu, 'prakiraan', 'o'); lg(w - Rr - 120, box[4].a - 10, mu, 'musiman', 'h'); }
+  if (w > 600) { const lg = (X, Y, col, s, kind) => { if (kind === 'o' || kind === 'h') { x.beginPath(); x.arc(X, Y, 5, 0, 7); x.fillStyle = kind === 'o' ? col : css('--panel'); x.fill(); x.strokeStyle = col; x.lineWidth = 2; x.stroke(); } else polyline(x, [[X - 9, Y], [X + 9, Y]], col, kind === 'd' ? [5, 4] : kind === 's' ? [2, 3] : [], 2); x.fillStyle = ink; x.textAlign = 'left'; x.fillText(s, X + 14, Y); }; const Y = box[0].a - 10; lg(w - Rr - 400, Y, c2, 'suhu'); lg(w - Rr - 330, Y, c1, 'titik embun'); lg(w - Rr - 216, Y, mu, 'ramalan LSTM', 's'); lg(w - Rr - 92, Y, mu, 'ECMWF', 'd'); lg(w - Rr - 230, box[4].a - 10, mu, 'prakiraan', 'o'); lg(w - Rr - 120, box[4].a - 10, mu, 'musiman', 'h'); }
   x.font = F(13); x.fillStyle = mu; x.textAlign = 'center'; x.textBaseline = 'top'; hours(w < 600 ? 6 : 3, (m, hh) => { const p = px(m); if (p > L + 10 && p < w - Rr - 5) x.fillText(two(hh), p, h - 17); }); x.textAlign = 'right'; x.fillText('WIB', w - 4, h - 17);
   polyline(x, [[px(0), box[0].a], [px(0), box[4].b]], mu, [3, 3], 1); polyline(x, [[px(t), box[0].a], [px(t), box[4].b]], S.st.k === 'off' ? mu : css(`--${S.st.k}-t`), [], 2);
   const o = t <= 0 ? OBS.reduce((m, q) => Math.abs(q.t - t) < Math.abs(m.t - t) ? q : m) : null, k = site ? clamp(Math.round((t - mapMin(0)) / 60), 0, PETA.n - 1) : 0;
-  $('cap').textContent = `${hm(t)} WIB. ` + (o ? `Teramati: suhu ${num(o.temp)} °C, titik embun ${num(o.dew)} °C, QNH ${o.q ?? '–'} hPa. ` : '') + (site ? `ECMWF: suhu ${num(site.t[k])} °C, hujan ${num(site.p[k])} mm/jam, CAPE ${num(site.c[k], 0)} J/kg. ` : '') + 'Garis penuh dan barb gelap adalah pengamatan METAR; garis putus, batang, CAPE, dan barb abu-abu adalah ECMWF. Arsiran merah menandai badai petir teramati, arsiran abu-abu menandai malam.';
+  $('cap').textContent = `${hm(t)} WIB. ` + (o ? `Teramati: suhu ${num(o.temp)} °C, titik embun ${num(o.dew)} °C, QNH ${o.q ?? '–'} hPa. ` : '') + (site ? `ECMWF: suhu ${num(site.t[k])} °C, hujan ${num(site.p[k])} mm/jam, CAPE ${num(site.c[k], 0)} J/kg. ` : '') + 'Garis penuh dan barb gelap adalah pengamatan METAR; garis putus, batang, CAPE, dan barb abu-abu adalah ECMWF; garis titik adalah ramalan LSTM. Arsiran merah menandai badai petir teramati, arsiran abu-abu menandai malam.';
 }
 
 /* ---------- kendali ---------- */

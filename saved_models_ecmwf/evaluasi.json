@@ -1,8 +1,10 @@
 {
- "model_version": "048090d8",
+ "model_version": "7646e9e6",
  "test_period": "2026-01-01 s.d. 2026-10-02",
  "test_samples": 13166,
  "training_period": {
+  "lstm": "2021-01-02 s.d. 2024-12-31",
+  "berurutan": "2024-02-13 s.d. 2025-12-31",
   "utama": "2024-02-13 s.d. 2025-12-31",
   "cadangan": "2021-01-03 s.d. 2025-12-31"
  },
@@ -15,24 +17,48 @@
     "klimatologi": 0.2027,
     "paralel_lama": 0.2646,
     "cadangan": 0.4281,
-    "utama": 0.4705
+    "utama": 0.4705,
+    "berurutan": 0.4763
    },
    "gain_over_climatology": [
-    0.2656,
-    0.2085,
-    0.3281
+    0.271,
+    0.2115,
+    0.3339
    ],
    "better_than_climatology": true,
    "gain_over_old_site": [
-    0.2033,
-    0.1426,
-    0.2654
+    0.2087,
+    0.1402,
+    0.2714
    ],
-   "gain_over_fallback": [
-    0.0401,
-    0.0098,
-    0.0661
+   "gain_over_direct": [
+    0.0054,
+    -0.0088,
+    0.0205
    ],
+   "berurutan": {
+    "waspada": {
+     "ambang": 0.0908,
+     "POD": 0.7574,
+     "FAR": 0.6816,
+     "CSI": 0.2889,
+     "HSS": 0.4167,
+     "TP": 384,
+     "FP": 822,
+     "FN": 123
+    },
+    "bahaya": {
+     "ambang": 0.3864,
+     "POD": 0.3787,
+     "FAR": 0.4336,
+     "CSI": 0.2936,
+     "HSS": 0.4365,
+     "TP": 192,
+     "FP": 147,
+     "FN": 315
+    },
+    "brier": 0.0259
+   },
    "utama": {
     "waspada": {
      "ambang": 0.1103,
@@ -86,24 +112,48 @@
     "klimatologi": 0.2027,
     "paralel_lama": 0.2143,
     "cadangan": 0.2564,
-    "utama": 0.2924
+    "utama": 0.2924,
+    "berurutan": 0.2983
    },
    "gain_over_climatology": [
-    0.0869,
-    0.0334,
-    0.1348
+    0.0922,
+    0.0365,
+    0.1508
    ],
    "better_than_climatology": true,
    "gain_over_old_site": [
-    0.0741,
-    0.0326,
-    0.1204
+    0.0794,
+    0.0282,
+    0.1394
    ],
-   "gain_over_fallback": [
-    0.0331,
-    -0.0113,
-    0.0817
+   "gain_over_direct": [
+    0.0054,
+    -0.0168,
+    0.0283
    ],
+   "berurutan": {
+    "waspada": {
+     "ambang": 0.0853,
+     "POD": 0.7653,
+     "FAR": 0.7891,
+     "CSI": 0.1981,
+     "HSS": 0.2876,
+     "TP": 388,
+     "FP": 1452,
+     "FN": 119
+    },
+    "bahaya": {
+     "ambang": 0.2109,
+     "POD": 0.3254,
+     "FAR": 0.6452,
+     "CSI": 0.2045,
+     "HSS": 0.3142,
+     "TP": 165,
+     "FP": 300,
+     "FN": 342
+    },
+    "brier": 0.0308
+   },
    "utama": {
     "waspada": {
      "ambang": 0.0781,
@@ -157,24 +207,48 @@
     "klimatologi": 0.2015,
     "paralel_lama": 0.1768,
     "cadangan": 0.2236,
-    "utama": 0.2669
+    "utama": 0.2669,
+    "berurutan": 0.2641
    },
    "gain_over_climatology": [
-    0.0662,
-    0.0168,
-    0.1222
+    0.0614,
+    0.0179,
+    0.1076
    ],
    "better_than_climatology": true,
    "gain_over_old_site": [
-    0.0899,
-    0.046,
-    0.1421
+    0.0852,
+    0.0443,
+    0.1303
    ],
-   "gain_over_fallback": [
-    0.0433,
-    -0.0046,
-    0.0919
+   "gain_over_direct": [
+    -0.0048,
+    -0.0242,
+    0.0159
    ],
+   "berurutan": {
+    "waspada": {
+     "ambang": 0.0761,
+     "POD": 0.7663,
+     "FAR": 0.8124,
+     "CSI": 0.1774,
+     "HSS": 0.2555,
+     "TP": 387,
+     "FP": 1676,
+     "FN": 118
+    },
+    "bahaya": {
+     "ambang": 0.2556,
+     "POD": 0.1584,
+     "FAR": 0.638,
+     "CSI": 0.1238,
+     "HSS": 0.2017,
+     "TP": 80,
+     "FP": 141,
+     "FN": 425
+    },
+    "brier": 0.0315
+   },
    "utama": {
     "waspada": {
      "ambang": 0.0674,
@@ -228,24 +302,48 @@
     "klimatologi": 0.1976,
     "paralel_lama": 0.2015,
     "cadangan": 0.1821,
-    "utama": 0.2073
+    "utama": 0.2073,
+    "berurutan": 0.2185
    },
    "gain_over_climatology": [
-    0.011,
-    -0.0336,
-    0.0585
+    0.0213,
+    -0.0248,
+    0.0671
    ],
    "better_than_climatology": false,
    "gain_over_old_site": [
-    0.0042,
-    -0.059,
-    0.0604
+    0.0145,
+    -0.0483,
+    0.0726
    ],
-   "gain_over_fallback": [
-    0.0256,
-    -0.0251,
-    0.0754
+   "gain_over_direct": [
+    0.0103,
+    -0.0064,
+    0.0278
    ],
+   "berurutan": {
+    "waspada": {
+     "ambang": 0.0682,
+     "POD": 0.7586,
+     "FAR": 0.831,
+     "CSI": 0.1604,
+     "HSS": 0.2288,
+     "TP": 377,
+     "FP": 1854,
+     "FN": 120
+    },
+    "bahaya": {
+     "ambang": 0.2039,
+     "POD": 0.2233,
+     "FAR": 0.7407,
+     "CSI": 0.1364,
+     "HSS": 0.2125,
+     "TP": 111,
+     "FP": 317,
+     "FN": 386
+    },
+    "brier": 0.0321
+   },
    "utama": {
     "waspada": {
      "ambang": 0.0777,
@@ -299,24 +397,48 @@
     "klimatologi": 0.1976,
     "paralel_lama": 0.1928,
     "cadangan": 0.1743,
-    "utama": 0.2002
+    "utama": 0.2002,
+    "berurutan": 0.2079
    },
    "gain_over_climatology": [
-    0.0067,
-    -0.0358,
-    0.052
+    0.0134,
+    -0.0281,
+    0.058
    ],
    "better_than_climatology": false,
    "gain_over_old_site": [
-    0.0111,
-    -0.0403,
-    0.0663
+    0.0178,
+    -0.0376,
+    0.0757
    ],
-   "gain_over_fallback": [
-    0.0291,
-    -0.0109,
-    0.0705
+   "gain_over_direct": [
+    0.0068,
+    -0.0067,
+    0.0193
    ],
+   "berurutan": {
+    "waspada": {
+     "ambang": 0.0722,
+     "POD": 0.7364,
+     "FAR": 0.8301,
+     "CSI": 0.1602,
+     "HSS": 0.2288,
+     "TP": 366,
+     "FP": 1788,
+     "FN": 131
+    },
+    "bahaya": {
+     "ambang": 0.1895,
+     "POD": 0.2596,
+     "FAR": 0.7575,
+     "CSI": 0.1433,
+     "HSS": 0.2203,
+     "TP": 129,
+     "FP": 403,
+     "FN": 368
+    },
+    "brier": 0.0322
+   },
    "utama": {
     "waspada": {
      "ambang": 0.0617,
@@ -363,6 +485,118 @@
     },
     "brier": 0.0327
    }
+  }
+ },
+ "lstm_mae": {
+  "1h": {
+   "temperature": [
+    0.5728,
+    0.7279,
+    0.9167
+   ],
+   "dew_point": [
+    0.5393,
+    0.4734,
+    0.9575
+   ],
+   "pressure": [
+    0.3914,
+    0.4724,
+    0.6736
+   ],
+   "wind_speed": [
+    1.4425,
+    1.6239,
+    2.3646
+   ]
+  },
+  "3h": {
+   "temperature": [
+    0.7925,
+    1.7839,
+    0.9166
+   ],
+   "dew_point": [
+    0.7401,
+    0.7954,
+    0.9582
+   ],
+   "pressure": [
+    0.4669,
+    1.2361,
+    0.6737
+   ],
+   "wind_speed": [
+    1.8024,
+    2.5684,
+    2.3652
+   ]
+  },
+  "9h": {
+   "temperature": [
+    0.9149,
+    3.8273,
+    0.9155
+   ],
+   "dew_point": [
+    0.8826,
+    1.1463,
+    0.9592
+   ],
+   "pressure": [
+    0.5895,
+    1.5262,
+    0.6733
+   ],
+   "wind_speed": [
+    1.9727,
+    4.3098,
+    2.3639
+   ]
+  },
+  "18h": {
+   "temperature": [
+    0.9204,
+    3.1426,
+    0.9145
+   ],
+   "dew_point": [
+    0.9233,
+    1.1607,
+    0.9583
+   ],
+   "pressure": [
+    0.6805,
+    1.8207,
+    0.6722
+   ],
+   "wind_speed": [
+    1.9451,
+    3.7118,
+    2.3607
+   ]
+  },
+  "24h": {
+   "temperature": [
+    0.8964,
+    0.9154,
+    0.9154
+   ],
+   "dew_point": [
+    0.95,
+    0.9597,
+    0.9597
+   ],
+   "pressure": [
+    0.7242,
+    0.6705,
+    0.6705
+   ],
+   "wind_speed": [
+    1.9732,
+    2.3601,
+    2.3601
+   ]
   }
  }
 }

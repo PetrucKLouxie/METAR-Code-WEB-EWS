@@ -257,7 +257,8 @@ def raw_column_ready(sheet):
 def get_recent_rows_from_sheet(sheet, count=20):
     """Mengambil baris terakhir dari sheet berukuran 100k+ secara cepat"""
     global _tail_hint
-    raw_rows, last_row = read_tail_rows(sheet, count, _tail_hint)
+    # Dibaca lebih banyak karena baris ganda dibuang: beberapa salinan server bisa menulis slot yang sama.
+    raw_rows, last_row = read_tail_rows(sheet, 2 * count + 20, _tail_hint)
     _tail_hint = last_row
 
     records = []
@@ -303,7 +304,7 @@ def get_recent_rows_from_sheet(sheet, count=20):
         })
         if len(r) > 6 and r[6]:
             records[-1]["raw_metar"] = r[6]
-    return records, last_row
+    return records[-count:], last_row
 
 # ---------------------------------------------
 # PARSER METAR & EKSTRAKSI SLOT WAKTU UTC
@@ -513,6 +514,17 @@ def _collect_metar():
                 existing_slots_set.add(slot_utc)
 
         # Simpan ke Google Sheet jika ada data baru
+        if new_rows_for_sheet and sheet:
+            try:
+                # Baca ulang tepat sebelum menulis, bila salinan server lain baru saja menulis slot yang sama.
+                latest_rows, _ = get_recent_rows_from_sheet(sheet, count=48)
+                taken = {parse_slot_datetime(r["slot_30min"]) for r in latest_rows}
+                keep = [i for i, row in enumerate(new_rows_for_sheet) if parse_slot_datetime(row[0]) not in taken]
+                new_rows_for_sheet = [new_rows_for_sheet[i] for i in keep]
+                new_records_for_local = [new_records_for_local[i] for i in keep]
+            except Exception as se:
+                print(f"Pembacaan ulang sebelum menulis gagal: {se!r}", flush=True)
+
         if new_rows_for_sheet and sheet:
             try:
                 if raw_column_ready(sheet):
@@ -771,7 +783,7 @@ STALE_AFTER_MINUTES = 75
 
 
 def build_ews(records):
-    """Peringatan METAR + ECMWF, LSTM lama sebagai pembanding, dan umur datanya."""
+    """Peringatan berurutan, LSTM pengklasifikasi lama sebagai pembanding, dan umur datanya."""
     result = ews_service.predict(records)
     lstm = {}
     try:
@@ -807,8 +819,8 @@ def log_prediction(sheet):
 @app.get("/api/ews/status")
 def ews_status():
     """
-    Peringatan 1-24 jam: METAR + ECMWF IFS (cadangan: METAR saja).
-    LSTM lama disertakan sebagai pembanding dan tidak menentukan status.
+    Peringatan 1-24 jam: LSTM meramal METAR, XGBoost mengklasifikasi bersama ECMWF IFS.
+    LSTM pengklasifikasi lama disertakan sebagai pembanding dan tidak menentukan status.
     """
     try:
         try:
@@ -835,10 +847,11 @@ def ews_model():
         evaluation = json.load(f)
     return {
         "version": ews_service.MODEL_VERSION,
+        "primary": ews_service.PRIMARY,
         "ecmwf_model": ews_service.BUNDLE["ecmwf_model"],
         "features": ews_service.BUNDLE["feature_order"],
         "horizons": {
-            h: {kind: ews_service.BUNDLE["models"][kind][h]["thresholds"] for kind in ("utama", "cadangan")}
+            h: {kind: ews_service.BUNDLE["models"][kind][h]["thresholds"] for kind in ews_service.MODEL_NAMES}
             for h in ews_service.LEAD_DAY
         },
         "evaluation": evaluation,

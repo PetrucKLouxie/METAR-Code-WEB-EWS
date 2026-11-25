@@ -1,9 +1,10 @@
 """
-Peringatan dini 1-24 jam: METAR Juanda + musim + riwayat badai + prakiraan ECMWF IFS.
+Peringatan dini 1-24 jam: LSTM meramal METAR, lalu XGBoost mengklasifikasi ramalan itu bersama musim,
+riwayat badai, dan prakiraan ECMWF IFS.
 
-Model XGBoost dilatih di riset/07_model_ecmwf.py dan dihitung di sini dengan pustaka standar Python.
+Model dilatih di riset/02, 07, dan 12, dan dihitung di sini dengan pustaka standar Python.
 Prakiraan ECMWF yang dipakai selalu berasal dari run yang sudah terbit: lihat LEAD_DAY.
-Bila ECMWF tidak dapat diambil, dipakai model cadangan yang hanya memakai METAR.
+Bila riwayat METAR terputus dipakai XGBoost dengan METAR langsung; bila ECMWF tidak ada, METAR saja.
 """
 
 import bisect
@@ -17,12 +18,16 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import lstm_forecaster
 from predict_service import FEATURE_NAMES, _feature_vector, _normalize_observation
 
-_MODEL_BYTES = (Path(__file__).resolve().parent / "saved_models_ecmwf" / "model.json").read_bytes()
+_DIR = Path(__file__).resolve().parent / "saved_models_ecmwf"
+_MODEL_BYTES = (_DIR / "model.json").read_bytes()
 BUNDLE = json.loads(_MODEL_BYTES)
-MODEL_VERSION = hashlib.sha256(_MODEL_BYTES).hexdigest()[:8]
+MODEL_VERSION = hashlib.sha256(_MODEL_BYTES + (_DIR / "lstm_forecaster.json").read_bytes()).hexdigest()[:8]
 del _MODEL_BYTES
+PRIMARY = "berurutan"
+MODEL_NAMES = {"berurutan": "LSTM, XGBoost, ECMWF IFS", "utama": "XGBoost, ECMWF IFS", "cadangan": "XGBoost, METAR saja"}
 
 LEAD_DAY = BUNDLE["lead_day"]
 EC_VARS = ["precipitation", "showers", "temperature_2m", "dew_point_2m", "relative_humidity_2m", "cloud_cover",
@@ -180,15 +185,26 @@ def predict(records):
     except Exception as error:
         print(f"ECMWF tidak tersedia, memakai model cadangan: {error!r}", flush=True)
 
+    ahead = rows = None
+    try:
+        rows = lstm_forecaster.grid(observations)
+        ahead = lstm_forecaster.forecast(rows, now)
+    except LookupError as error:
+        print(f"LSTM peramal dilewati: {error}", flush=True)
+
     predictions = []
     for horizon, day in LEAD_DAY.items():
-        target = now + timedelta(minutes=30 * BUNDLE["models"]["utama"][horizon]["lead_steps"])
-        values = vector + season_features(target) + storm
+        steps = BUNDLE["models"]["utama"][horizon]["lead_steps"]
+        target = now + timedelta(minutes=30 * steps)
+        common = season_features(target) + storm
+        values = vector + common
         kind = "cadangan"
         if table is not None:
             try:
-                values = values + table.features(day, target)
-                kind = "utama"
+                ecmwf = table.features(day, target)
+                kind = "utama" if ahead is None else "berurutan"
+                metar = vector if ahead is None else lstm_forecaster.features(rows, ahead, now, steps)
+                values = metar + common + ecmwf
             except LookupError as error:
                 print(f"ECMWF +{horizon}: {error}", flush=True)
         p = probability(kind, horizon, values)
@@ -198,7 +214,8 @@ def predict(records):
         predictions.append({
             "horizon": horizon,
             "available": True,
-            "model": "METAR + ECMWF IFS" if kind == "utama" else "METAR saja",
+            "model": MODEL_NAMES[kind],
+            "kind": kind,
             "probability": p,
             "thresholds": thresholds,
             "status": {"level": level, "label": label, "color": color},
@@ -213,13 +230,20 @@ def predict(records):
         "observed_at_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "observed_at_wib": now.astimezone(WIB).strftime("%Y-%m-%d %H:%M WIB"),
         "observations_used": len(observations),
-        "ecmwf_available": all(p["model"] != "METAR saja" for p in predictions),
+        "ecmwf_available": all(p["kind"] != "cadangan" for p in predictions),
         "overall_status": {"level": top, "label": LEVELS[top][0], "color": LEVELS[top][1]},
         "current": {k: current[k] for k in ("temperature", "dew_point", "dpd", "pressure", "wind_speed",
                                             "pressure_tendency_3h", "relative_humidity")},
         "predictions": predictions,
+        "lstm_forecast": None if ahead is None else {
+            "step_minutes": 30,
+            **{name: [round(row[j], 2) for row in ahead]
+               for j, name in enumerate(("temperature", "dew_point", "pressure", "wind_speed"))},
+        },
     }
 
 
 assert BUNDLE["feature_order"]["utama"][:14] == FEATURE_NAMES
 assert BUNDLE["feature_order"]["utama"][-len(EC_NAMES):] == EC_NAMES
+assert BUNDLE["feature_order"]["berurutan"] == BUNDLE["feature_order"]["utama"]
+assert lstm_forecaster.NET["features"] == FEATURE_NAMES

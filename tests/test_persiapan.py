@@ -44,7 +44,7 @@ class LogTest(unittest.TestCase):
         self.assertEqual(len(row), len(ews_log.HEADERS))
         self.assertEqual((d["observed_utc"], d["delay_min"]), ("2026-11-24 16:00", 7))
         self.assertEqual(d["model_version"], ews.MODEL_VERSION)
-        self.assertEqual(d["model_1h"], "METAR + ECMWF IFS")
+        self.assertEqual(d["model_1h"], "LSTM, XGBoost, ECMWF IFS")
         self.assertIsInstance(d["p_24h"], float)
         self.assertIn(d["level_24h"], (0, 1, 2))
         self.assertIsInstance(d["lstm_1h"], float)
@@ -177,9 +177,14 @@ class ModelInfoTest(unittest.TestCase):
         self.assertEqual(info["evaluation"]["model_version"], ews.MODEL_VERSION)
         for h in ews.LEAD_DAY:
             e = info["evaluation"]["horizons"][h]
-            self.assertEqual(set(e["prauc"]), {"klimatologi", "paralel_lama", "cadangan", "utama"})
-            self.assertAlmostEqual(e["prauc"]["utama"], ews.BUNDLE["models"]["utama"][h]["metrics_2026"]["prauc"], places=4)
-            self.assertEqual(e["utama"]["waspada"]["ambang"], info["horizons"][h]["utama"]["th_waspada"])
+            self.assertEqual(set(e["prauc"]), {"klimatologi", "paralel_lama", "cadangan", "utama", "berurutan"})
+            for kind in ("utama", "berurutan"):
+                self.assertAlmostEqual(e["prauc"][kind], ews.BUNDLE["models"][kind][h]["metrics_2026"]["prauc"], places=4)
+                self.assertEqual(e[kind]["waspada"]["ambang"], info["horizons"][h][kind]["th_waspada"])
+            self.assertEqual(len(info["evaluation"]["lstm_mae"][h]["temperature"]), 3)
+        self.assertEqual(info["primary"], "berurutan")
+        for h in ews.LEAD_DAY:
+            e = info["evaluation"]["horizons"][h]
             self.assertIn("better_than_climatology", e)
         self.assertEqual([info["evaluation"]["horizons"][h]["better_than_climatology"] for h in ews.LEAD_DAY],
                          [True, True, True, False, False])
