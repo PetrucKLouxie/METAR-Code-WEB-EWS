@@ -177,17 +177,21 @@ class ModelInfoTest(unittest.TestCase):
         self.assertEqual(info["evaluation"]["model_version"], ews.MODEL_VERSION)
         for h in ews.LEAD_DAY:
             e = info["evaluation"]["horizons"][h]
-            self.assertEqual(set(e["prauc"]), {"klimatologi", "paralel_lama", "cadangan", "utama", "berurutan"})
+            self.assertEqual(set(e["prauc"]), {"klimatologi", "situs_lama", "cadangan", "utama", "berurutan"})
             for kind in ("utama", "berurutan"):
                 self.assertAlmostEqual(e["prauc"][kind], ews.BUNDLE["models"][kind][h]["metrics_2026"]["prauc"], places=4)
                 self.assertEqual(e[kind]["waspada"]["ambang"], info["horizons"][h][kind]["th_waspada"])
             self.assertEqual(len(info["evaluation"]["lstm_mae"][h]["temperature"]), 3)
+            c = info["evaluation"]["confirmation"]["horizons"][h]
+            self.assertEqual(c["events"], c["berurutan"]["waspada"]["TP"] + c["berurutan"]["waspada"]["FN"])
+        self.assertRegex(info["evaluation"]["confirmation"]["model_version"], r"^[0-9a-f]{8}$")
         self.assertEqual(info["primary"], "berurutan")
         for h in ews.LEAD_DAY:
             e = info["evaluation"]["horizons"][h]
             self.assertIn("better_than_climatology", e)
-        self.assertEqual([info["evaluation"]["horizons"][h]["better_than_climatology"] for h in ews.LEAD_DAY],
-                         [True, True, True, False, False])
+            # Tanda 'terbukti lebih baik' harus mengikuti selang 95%, bukan ditulis tangan.
+            self.assertEqual(e["better_than_climatology"], e["gain_over_climatology"][1] > 0)
+        self.assertEqual([info["evaluation"]["horizons"][h]["better_than_climatology"] for h in ("1h", "3h")], [True, True])
 
 
 if __name__ == "__main__":
